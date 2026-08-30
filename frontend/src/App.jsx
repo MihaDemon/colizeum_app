@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import WebApp from '@twa-dev/sdk';
 import { apiAuthenticate, apiFetchProfile, apiFetchPosition, apiFetchLeaderboard, apiFetchPromocodes, apiFetchDailyBonus } from './api/client';
 import { styles } from './utils/styles';
 import { PrizesModal, WinnerModal } from './components/Modals';
 import AdminPanel from './pages/AdminPanel';
 import Register from './pages/Register';
 import { HubView, DailyBonusView, LadderView, WheelView } from './pages/PlayerViews';
+
+const WebApp = window.Telegram.WebApp;
 
 export default function App() {
   const [profile, setProfile] = useState(null);

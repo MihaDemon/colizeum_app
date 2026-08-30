@@ -1,13 +1,13 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install
 
 COPY . .
 
 RUN npm run build
 
-CMD ["sh", "-c", "cp -rn /app/dist/* /usr/share/nginx/html/"]
+CMD ["sh", "-c", "rm -rf /usr/share/nginx/html/* && cp -a /app/dist/. /usr/share/nginx/html/"]
