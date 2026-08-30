@@ -1,8 +1,9 @@
 import React from 'react';
-import WebApp from '@twa-dev/sdk';
 import { styles } from '../utils/styles';
 
 export const copyToClipboard = (text, setCopiedCode) => {
+  const WebApp = window.Telegram.WebApp;
+
   if (!text) return;
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text);

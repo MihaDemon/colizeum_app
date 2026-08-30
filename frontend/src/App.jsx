@@ -39,27 +39,46 @@ export default function App() {
   };
 
   const authUser = async (payloadData = {}) => {
-    const initData = WebApp.initData;
-    if (!initData) {
-      setError('Пожалуйста, откройте приложение через Telegram.');
-      setIsLoading(false);
-      return;
-    }
-    try {
-      const res = await apiAuthenticate(initData, payloadData);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || data.detail);
+  const initData = WebApp.initData;
+  if (!initData) {
+    setError('Пожалуйста, откройте приложение через Telegram.');
+    setIsLoading(false);
+    return;
+  }
 
-      if (data.require_registration || (data.is_new_user && !data.username && !payloadData.username)) {
+  try {
+    const res = await apiAuthenticate(initData, payloadData);
+    const data = await res.json();
+
+    // 1. Handle HTTP errors or explicit registration flags
+    if (!res.ok) {
+      // If backend signals registration needed via status 400/404 payload
+      if (data.require_registration) {
+        setError(null); // Clear error state so the screen isn't blocked
         setNeedsRegistration(true);
-      } else {
-        localStorage.setItem('auth_token', data.token);
-        await refreshAppData();
-        setNeedsRegistration(false);
+        return;
       }
-    } catch (err) { setError(err.message); setNeedsRegistration(true); } 
-    finally { setIsLoading(false); setIsSubmitting(false); }
-  };
+      throw new Error(data.error || data.detail || 'Ошибка авторизации');
+    }
+
+    // 2. Handle 200 OK registration response
+    if (data.require_registration || (data.is_new_user && !data.username && !payloadData.username)) {
+      setError(null);
+      setNeedsRegistration(true);
+    } else {
+      localStorage.setItem('auth_token', data.token);
+      await refreshAppData();
+      setError(null);
+      setNeedsRegistration(false);
+    }
+  } catch (err) {
+    // Only set error for actual network/server failures
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+    setIsSubmitting(false);
+  }
+};
 
   useEffect(() => {
     WebApp.ready();
