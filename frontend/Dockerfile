@@ -4,10 +4,10 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci
 
-COPY . ./
+COPY . .
 
 RUN npm run build
 
-CMD cp -r build /app/build
+CMD ["sh", "-c", "cp -rn /app/dist/* /usr/share/nginx/html/"]
