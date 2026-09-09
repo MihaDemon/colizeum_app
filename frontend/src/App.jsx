@@ -1,133 +1,302 @@
 import React, { useState, useEffect } from 'react';
-import { apiAuthenticate, apiFetchProfile, apiFetchPosition, apiFetchLeaderboard, apiFetchPromocodes, apiFetchDailyBonus } from './api/client';
-import { styles } from './utils/styles';
-import { PrizesModal, WinnerModal } from './components/Modals';
-import AdminPanel from './pages/AdminPanel';
-import Register from './pages/Register';
-import { HubView, DailyBonusView, LadderView, WheelView } from './pages/PlayerViews';
+import './App.css';
+import { styles } from './styles/styles';
+import { getAuthToken, copyToClipboard as handleCopy } from './utils/helpers';
+import { 
+  fetchProfileApi, 
+  fetchUserPositionApi, 
+  fetchGlobalLeaderboardApi, 
+  fetchPromocodesApi, 
+  fetchDailyBonusesApi, 
+  fetchWheelPrizesApi, 
+  authenticateUserApi 
+} from './services/api';
 
-const WebApp = window.Telegram.WebApp;
+import Header from './components/Header';
+import Navigation from './components/Navigation';
+import Toast from './components/Toast';
+import PrizesModal from './components/modals/PrizesModal';
+import WinnerModal from './components/modals/WinnerModal';
+
+import AdminView from './components/views/AdminView';
+import RegistrationView from './components/views/RegistrationView';
+import HubView from './components/views/HubView';
+import WheelView from './components/views/WheelView';
+import DailyBonusView from './components/views/DailyBonusView';
+import LeaderboardView from './components/views/LeaderboardView';
 
 export default function App() {
   const [profile, setProfile] = useState(null);
   const [ladderRank, setLadderRank] = useState('--');
   const [leaderboardList, setLeaderboardList] = useState([]);
-  const [userPromocodes, setUserPromocodes] = useState([]);
-  const [latestDailyBonus, setLatestDailyBonus] = useState(null);
-  
-  const [activeTab, setActiveTab] = useState('hub');
   const [needsRegistration, setNeedsRegistration] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('hub');
+
+  // Modal states
   const [showPrizesModal, setShowPrizesModal] = useState(false);
+  const [userPromocodes, setUserPromocodes] = useState([]);
   const [wonPrize, setWonPrize] = useState(null);
+
+  // Copy Feedback Toast State
   const [copiedCode, setCopiedCode] = useState('');
 
-  const refreshAppData = async () => {
+  // Daily Bonus states
+  const [latestDailyBonus, setLatestDailyBonus] = useState(null);
+
+  // Wheel states
+  const [wheelPrizes, setWheelPrizes] = useState([]);
+
+  const copyToClipboard = (text) => handleCopy(text, setCopiedCode);
+
+  const fetchProfile = async (token) => {
     try {
-      const [prof, rank, ladder, promos, daily] = await Promise.all([
-        apiFetchProfile(), apiFetchPosition(), apiFetchLeaderboard(), apiFetchPromocodes(), apiFetchDailyBonus()
-      ]);
-      setProfile(prof);
-      setLadderRank(rank.position ?? '--');
-      setLeaderboardList(Array.isArray(ladder) ? ladder : []);
-      setUserPromocodes(Array.isArray(promos) ? promos : []);
-      setLatestDailyBonus(daily);
-    } catch (e) { console.error(e); }
+      const userData = await fetchProfileApi(token);
+      setProfile(userData);
+    } catch (err) {
+      console.error("Ошибка при обновлении профиля", err);
+    }
   };
 
-  const authUser = async (payloadData = {}) => {
-  const initData = WebApp.initData;
-  if (!initData) {
-    setError('Пожалуйста, откройте приложение через Telegram.');
-    setIsLoading(false);
-    return;
-  }
+  const fetchUserPosition = async (token) => {
+    try {
+      const data = await fetchUserPositionApi(token);
+      setLadderRank(data.position ?? '--');
+    } catch (err) {
+      console.error("Ошибка при загрузке позиции в лидерборде", err);
+    }
+  };
 
-  try {
-    const res = await apiAuthenticate(initData, payloadData);
-    const data = await res.json();
+  const fetchGlobalLeaderboard = async (token) => {
+    try {
+      const data = await fetchGlobalLeaderboardApi(token);
+      setLeaderboardList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Ошибка при загрузке общего лидерборда", err);
+    }
+  };
 
-    // 1. Handle HTTP errors or explicit registration flags
-    if (!res.ok) {
-      // If backend signals registration needed via status 400/404 payload
-      if (data.require_registration) {
-        setError(null); // Clear error state so the screen isn't blocked
+  const fetchPromocodes = async (token) => {
+    try {
+      const data = await fetchPromocodesApi(token);
+      setUserPromocodes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Ошибка при загрузке промокодов", err);
+    }
+  };
+
+  const fetchDailyBonuses = async (token) => {
+    try {
+      const data = await fetchDailyBonusesApi(token);
+      setLatestDailyBonus(data);
+    } catch (err) {
+      console.error("Ошибка при загрузке последнего ежедневного бонуса", err);
+    }
+  };
+
+  const refreshAppData = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+    await Promise.all([
+      fetchProfile(token),
+      fetchUserPosition(token),
+      fetchPromocodes(token),
+      fetchDailyBonuses(token)
+    ]);
+  };
+
+  const authenticateUser = async (payloadData = {}) => {
+    try {
+      const data = await authenticateUserApi(payloadData);
+
+      if (data.require_registration || (data.is_new_user && !data.username && !payloadData.username)) {
         setNeedsRegistration(true);
+        setIsLoading(false);
         return;
       }
-      throw new Error(data.error || data.detail || 'Ошибка авторизации');
-    }
 
-    // 2. Handle 200 OK registration response
-    if (data.require_registration || (data.is_new_user && !data.username && !payloadData.username)) {
-      setError(null);
-      setNeedsRegistration(true);
-    } else {
-      localStorage.setItem('auth_token', data.token);
-      await refreshAppData();
-      setError(null);
+      if (data.token) localStorage.setItem('auth_token', data.token);
+      const token = data.token || getAuthToken();
+
+      await fetchProfile(token);
+      await fetchUserPosition(token);
+      await fetchPromocodes(token);
+      await fetchDailyBonuses(token);
       setNeedsRegistration(false);
+    } catch (err) {
+      console.error(err);
+      if (err.message === 'NO_INIT_DATA') {
+        setError('Пожалуйста, откройте приложение через Telegram.');
+      } else {
+        setError(err.message || 'Ошибка подключения к серверу Django.');
+      }
+      setNeedsRegistration(true);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    // Only set error for actual network/server failures
-    setError(err.message);
-  } finally {
-    setIsLoading(false);
-    setIsSubmitting(false);
-  }
-};
+  };
 
   useEffect(() => {
-    WebApp.ready();
-    WebApp.expand();
-    authUser();
+    authenticateUser();
   }, []);
 
-  if (isLoading) return <div style={styles.container}><h2>Загрузка...</h2></div>;
-  if (error && !profile) return <div style={styles.container}><h2>⚠️ {error}</h2></div>;
-  if (profile?.is_staff) return <AdminPanel profile={profile} />;
-  
-  if (needsRegistration) return (
-    <Register 
-      submitRegistration={(data) => { setIsSubmitting(true); authUser(data); }} 
-      isSubmitting={isSubmitting} error={error} 
-    />
-  );
+  // Handle Tab changes
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token || profile?.is_staff) return;
 
+    if (activeTab === 'wheel') {
+      fetchProfile(token);
+      fetchWheelPrizesApi(token)
+        .then(data => {
+          const activePrizes = data.filter(p => p.is_active).map((p, idx) => ({
+            ...p,
+            color: idx % 2 === 0 ? '#FFE500' : '#141416',
+            textColor: idx % 2 === 0 ? '#000000' : '#FFFFFF'
+          }));
+          setWheelPrizes(activePrizes);
+        })
+        .catch(err => console.error("Ошибка загрузки призов колеса", err));
+    } else if (activeTab === 'ladder') {
+      fetchGlobalLeaderboard(token);
+      fetchUserPosition(token);
+    } else if (activeTab === 'daily') {
+      Promise.all([
+        fetchProfile(token),
+        fetchDailyBonuses(token)
+      ]);
+    }
+  }, [activeTab, profile?.is_staff]);
+
+  if (isLoading) return <div style={styles.container}><h2>Загрузка Arena...</h2></div>;
+
+  // --- ADMIN PAGE VIEW (Shown only if is_staff is True) ---
+  if (profile?.is_staff) {
+    return <AdminView profile={profile} />;
+  }
+
+  // --- REGISTRATION VIEW ---
+  if (needsRegistration) {
+    return (
+      <RegistrationView 
+        authenticateUser={authenticateUser} 
+        error={error} 
+        setError={setError} 
+      />
+    );
+  }
+
+  const canSpin = profile?.can_spin ?? false;
+  const canClaimBonus = profile?.can_claim_daily_bonus ?? false;
+
+  // --- REGULAR PLAYER VIEW ---
   return (
     <div style={styles.container}>
-      {copiedCode && <div style={styles.toastNotification}>📋 Скопировано: <strong>{copiedCode}</strong></div>}
+      <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        @keyframes giftPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        @keyframes giftBreak {
+          0% { transform: rotate(0deg) scale(1); }
+          25% { transform: rotate(-10deg) scale(1.1); }
+          75% { transform: rotate(10deg) scale(1.1); }
+          100% { transform: rotate(0deg) scale(0.9); }
+        }
+        @keyframes animatedGradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes pulseGlow {
+          0% {
+            border-color: #FFE500;
+            box-shadow: 0 0 10px rgba(255, 229, 0, 0.2);
+          }
+          50% {
+            border-color: #FF007A;
+            box-shadow: 0 0 22px rgba(255, 0, 122, 0.5);
+          }
+          100% {
+            border-color: #FFE500;
+            box-shadow: 0 0 10px rgba(255, 229, 0, 0.2);
+          }
+        }
+      `}</style>
+
+      <Toast copiedCode={copiedCode} />
 
       <div style={styles.mainWrapper}>
-        <header style={styles.header}>
-          <div style={styles.headerLeft} onClick={() => { setActiveTab('hub'); refreshAppData(); }}>
-            <div style={styles.yellowBar}></div>
-            <div><h1 style={styles.headerBrand}>COLIZEUM</h1><p style={styles.headerSub}>ARENA HUB</p></div>
-          </div>
-          <div style={styles.headerRight}>
-            <div style={styles.pointsBadge}><span style={styles.ptsLabel}>SPN:</span><span style={styles.ptsValue}>{profile?.available_spins ?? 0}</span></div>
-            <button onClick={() => setShowPrizesModal(true)} style={styles.promocodeButton}>📜</button>
-          </div>
-        </header>
+        <Header 
+          profile={profile} 
+          setActiveTab={setActiveTab} 
+          refreshAppData={refreshAppData} 
+          setShowPrizesModal={setShowPrizesModal} 
+        />
 
-        {activeTab === 'hub' && <HubView profile={profile} ladderRank={ladderRank} setActiveTab={setActiveTab} />}
-        {activeTab === 'wheel' && <WheelView profile={profile} refreshData={refreshAppData} setWonPrize={setWonPrize} />}
-        {activeTab === 'daily' && <DailyBonusView profile={profile} latestDailyBonus={latestDailyBonus} refreshData={refreshAppData} setCopiedCode={setCopiedCode} />}
-        {activeTab === 'ladder' && <LadderView profile={profile} leaderboardList={leaderboardList} />}
+        {activeTab === 'hub' && (
+          <HubView 
+            profile={profile} 
+            ladderRank={ladderRank} 
+            setActiveTab={setActiveTab} 
+            canClaimBonus={canClaimBonus} 
+          />
+        )}
 
-        <div style={styles.navBar}>
-          <button onClick={() => { setActiveTab('hub'); refreshAppData(); }} style={{ ...styles.navButton, color: activeTab === 'hub' ? '#FFE500' : '#888' }}>🏠 HUB</button>
-          <button onClick={() => {setActiveTab('wheel'); refreshAppData(); }} style={{ ...styles.navButton, color: activeTab === 'wheel' ? '#FFE500' : '#888' }}>🎡 КОЛЕСО</button>
-          <button onClick={() => {setActiveTab('daily'); refreshAppData(); }} style={{ ...styles.navButton, color: activeTab === 'daily' ? '#FFE500' : '#888' }}>🎁 БОНУС</button>
-          <button onClick={() => {setActiveTab('ladder'); refreshAppData(); }} style={{ ...styles.navButton, color: activeTab === 'ladder' ? '#FFE500' : '#888' }}>🏆 LADDER</button>
-        </div>
+        {activeTab === 'wheel' && (
+          <WheelView 
+            profile={profile} 
+            wheelPrizes={wheelPrizes} 
+            setWonPrize={setWonPrize} 
+            fetchProfile={fetchProfile} 
+            fetchPromocodes={fetchPromocodes} 
+            fetchUserPosition={fetchUserPosition} 
+            canSpin={canSpin} 
+          />
+        )}
+
+        {activeTab === 'daily' && (
+          <DailyBonusView 
+            profile={profile} 
+            canClaimBonus={canClaimBonus} 
+            latestDailyBonus={latestDailyBonus} 
+            setLatestDailyBonus={setLatestDailyBonus} 
+            fetchProfile={fetchProfile} 
+            copyToClipboard={copyToClipboard} 
+          />
+        )}
+
+        {activeTab === 'ladder' && (
+          <LeaderboardView 
+            leaderboardList={leaderboardList} 
+            profile={profile} 
+          />
+        )}
+
+        <Navigation 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          refreshAppData={refreshAppData} 
+        />
       </div>
 
-      {showPrizesModal && <PrizesModal userPromocodes={userPromocodes} onClose={() => setShowPrizesModal(false)} setCopiedCode={setCopiedCode} />}
-      {wonPrize && <WinnerModal wonPrize={wonPrize} onClose={() => setWonPrize(null)} setCopiedCode={setCopiedCode} isAdmin={false} />}
+      <PrizesModal 
+        showPrizesModal={showPrizesModal} 
+        setShowPrizesModal={setShowPrizesModal} 
+        userPromocodes={userPromocodes} 
+        copyToClipboard={copyToClipboard} 
+      />
+
+      <WinnerModal 
+        wonPrize={wonPrize} 
+        setWonPrize={setWonPrize} 
+        copyToClipboard={copyToClipboard} 
+      />
     </div>
   );
 }
