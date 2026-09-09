@@ -10,6 +10,7 @@ class User(AbstractUser):
     username = models.CharField(
         verbose_name='Логин',
         unique=True,
+        max_length=30
     )
     mobile_phone = models.ForeignKey(
         'ClubUser',
@@ -113,22 +114,26 @@ class ClubUser(models.Model):
     first_name = models.CharField(
         verbose_name='Имя',
         blank=True,
-        null=True
+        null=True,
+        max_length=150
     )
     last_name = models.CharField(
         verbose_name='Фамилия',
         blank=True,
-        null=True
+        null=True,
+        max_length=150
     )
     middle_name = models.CharField(
         verbose_name='Отчество',
         blank=True,
-        null=True
+        null=True,
+        max_length=150
     )
     mobile_phone = models.CharField(
         verbose_name='Номер телефона',
         unique=True,
-        primary_key=True
+        primary_key=True,
+        max_length=15
     )
     age = models.PositiveSmallIntegerField(
         verbose_name='Возраст',
@@ -163,7 +168,8 @@ class ClubTransaction(models.Model):
     )
     check_number = models.CharField(
         verbose_name='Номер чека ФД',
-        unique=True
+        unique=True,
+        max_length=200
     )
     spins_awarded = models.PositiveIntegerField(
         verbose_name='Полученные спины',

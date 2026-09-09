@@ -10,10 +10,12 @@ User = get_user_model()
 
 class WheelPrize(models.Model):
     label = models.CharField(
-        verbose_name='Название'
+        verbose_name='Название',
+        max_length=50
     )
     internal_value = models.CharField(
-        verbose_name='Содержимое'
+        verbose_name='Содержимое',
+        max_length=50
     )
     weight = models.PositiveBigIntegerField(
         verbose_name='Шанс выпадения',
@@ -39,10 +41,12 @@ class WheelPrize(models.Model):
 
 class DailyBonusPrize(models.Model):
     label = models.CharField(
-        verbose_name='Название'
+        verbose_name='Название',
+        max_length=50
     )
     internal_value = models.CharField(
-        verbose_name='Содержимое'
+        verbose_name='Содержимое',
+        max_length=50
     )
     weight = models.PositiveBigIntegerField(
         verbose_name='Шанс выпадения',
@@ -268,10 +272,12 @@ class PromocodePrize(models.Model):
         related_name='promocodes'
     )
     label = models.CharField(
-        verbose_name='Название'
+        verbose_name='Название',
+        max_length=50
     )
     internal_value = models.CharField(
-        verbose_name='Содержимое'
+        verbose_name='Содержимое',
+        max_length=50
     )
     promo_code = models.CharField(
         verbose_name='Промокод',

@@ -1,0 +1,10 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:users_clubuser_sync_db' %}" class="addlink" style="background-color: #264b5d; color: #ffffff; font-weight: bold;">
+      СИНХРОНИЗИРОВАТЬ БАЗУ ДАННЫХ
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}s

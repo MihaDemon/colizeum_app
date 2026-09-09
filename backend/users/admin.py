@@ -1,9 +1,12 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
-from .models import User, ClubUser, ClubTransaction, MonthlyLadderArchive
+from django.shortcuts import redirect
+from django.urls import path
 
+from .models import User, ClubUser, ClubTransaction, MonthlyLadderArchive
+from .services import sync_guests_database
 
 admin.site.unregister(Group)
 
@@ -25,6 +28,34 @@ class ClubUserAdmin(admin.ModelAdmin):
     )
     list_filter = ('age',)
     ordering = ('last_name', 'first_name')
+    change_list_template = "admin/users/clubuser/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                'sync-db/',
+                self.admin_site.admin_view(self.sync_db_view),
+                name='users_clubuser_sync_db',
+            ),
+        ]
+        return custom_urls + urls
+
+    def sync_db_view(self, request):
+        try:
+            created, updated = sync_guests_database()
+            self.message_user(
+                request,
+                f"Синхронизация завершена успешно! Создано: {created}, Обновлено: {updated}",
+                messages.SUCCESS
+            )
+        except Exception as e:
+            self.message_user(
+                request,
+                f"Ошибка во время синхронизации: {str(e)}",
+                messages.ERROR
+            )
+        return redirect('admin:users_clubuser_changelist')
 
 
 @admin.register(User)
