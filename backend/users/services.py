@@ -2,22 +2,16 @@ import csv
 import io
 import os
 import requests
+
 from django.db import transaction
+from django.core.cache import cache
+
 from users.models import ClubUser
+from users.utils import get_cookie_string
 
 CLS_EXPORT_URL = os.getenv("CLS_EXPORT_URL")
 
 # Externalize headers and cookies to environment variables or settings
-HEADERS = {
-    "Host": os.getenv("CLS_HOST"),
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:156.0) Gecko/20100101 Firefox/156.0",
-    "Accept": "*/*",
-    "Content-Type": "application/json; charset=UTF-8",
-    "X-Requested-With": "XMLHttpRequest",
-    "Origin": os.getenv("CLS_ORIGIN"),
-    "Referer": os.getenv("CLS_REFERER"),
-    "Cookie": os.getenv("CLS_COOKIE")
-}
 
 PAYLOAD = {
     "export": True,
@@ -49,7 +43,8 @@ def parse_fio(fio_raw: str) -> tuple[str, str, str]:
     if not parts:
         return "", "", ""
 
-    # Russian ФИО order: parts[0] = Surname (last_name), parts[1] = Name (first_name)
+    # Russian ФИО order: parts[0] = Surname (last_name),
+    # parts[1] = Name (first_name)
     if len(parts) == 1:
         return parts[0], "", ""
     elif len(parts) == 2:
@@ -61,12 +56,29 @@ def parse_fio(fio_raw: str) -> tuple[str, str, str]:
         return first_name, last_name, middle_name
 
 
-def sync_guests_database():
-    """Fetch CSV export from remote CLS endpoint and perform fast batch synchronization."""
+def get_database():
+    cookie_string = cache.get("cls_cookie")
+
+    if not cookie_string:
+        cookie_string = get_cookie_string()
+
+    headers = {
+        "Cookie": cookie_string,
+    }
+
     response = requests.post(
-        CLS_EXPORT_URL, json=PAYLOAD, headers=HEADERS, timeout=30
+        CLS_EXPORT_URL,
+        json=PAYLOAD,
+        headers=headers,
+        timeout=30,
     )
-    response.raise_for_status()
+
+    return response
+
+
+def sync_guests_database():
+    """Fetch CSV export and perform fast batch synchronization."""
+    response = get_database()
 
     content = response.content.decode('utf-8-sig', errors='replace')
     csv_file = io.StringIO(content)
@@ -82,7 +94,9 @@ def sync_guests_database():
         ]
 
     # Pre-fetch existing users into memory for O(1) lookups
-    existing_users = {user.mobile_phone: user for user in ClubUser.objects.all()}
+    existing_users = {
+        user.mobile_phone: user for user in ClubUser.objects.all()
+    }
 
     to_create = []
     to_update = []
@@ -121,7 +135,8 @@ def sync_guests_database():
         else:
             new_user = ClubUser(mobile_phone=clean_phone, **defaults)
             to_create.append(new_user)
-            existing_users[clean_phone] = new_user  # Prevent duplicates in the same CSV stream
+            existing_users[clean_phone] = new_user
+            # Prevent duplicates in the same CSV stream
 
     # Execute DB operations in optimized bulk batches
     with transaction.atomic():

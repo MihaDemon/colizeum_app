@@ -1,6 +1,54 @@
+import os
 import hashlib
 import hmac
 from urllib.parse import parse_qsl
+
+from django.core.cache import cache
+
+import requests_pkcs12
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+CERT_PATH = f'certificates/{os.getenv("colizeum_certificate")}'
+CERT_PASSWORD = os.getenv("colizeum_certificate_password")
+LOGIN = os.getenv("colizeum_login")
+PASSWORD = os.getenv("colizeum_password")
+URL = os.getenv("colizeum_url")
+CACHE_KEY = "cls_cookie"
+CACHE_TTL = 3600
+
+
+def get_cookie_string() -> str:
+    cookie = cache.get(CACHE_KEY)
+
+    if cookie:
+
+        return cookie
+
+    payload = {
+        "login": LOGIN,
+        "password": PASSWORD,
+        "r": "",
+        "lang": "ru",
+    }
+
+    response = requests_pkcs12.post(
+        URL,
+        data=payload,
+        pkcs12_filename=CERT_PATH,
+        pkcs12_password=CERT_PASSWORD,
+        allow_redirects=False
+    )
+
+    cookie_header_string = "; ".join(
+        [f"{k}={v}" for k, v in response.cookies.items()]
+    )
+
+    cache.set(CACHE_KEY, cookie_header_string, CACHE_TTL)
+
+    return cookie_header_string
 
 
 def validate_telegram_data(init_data: str, bot_token: str) -> bool:
@@ -16,13 +64,19 @@ def validate_telegram_data(init_data: str, bot_token: str) -> bool:
         return False
 
     # Sort the remaining key-value pairs alphabetically by key
-    data_check_string = '\n'.join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
+    data_check_string = '\n'.join(
+        f"{k}={v}" for k, v in sorted(parsed_data.items())
+    )
 
     # Generate the secret key (HMAC of bot token using 'WebAppData' as the key)
-    secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+    secret_key = hmac.new(
+        b"WebAppData", bot_token.encode(), hashlib.sha256
+    ).digest()
 
     # Calculate the final hash
-    calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    calculated_hash = hmac.new(
+        secret_key, data_check_string.encode(), hashlib.sha256
+    ).hexdigest()
 
     # Compare securely
     return hmac.compare_digest(calculated_hash, received_hash)
