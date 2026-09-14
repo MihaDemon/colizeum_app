@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import asyncio
 import logging
 import sys
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart
 from aiogram.types import (
     WebAppInfo,
@@ -48,6 +48,17 @@ async def command_start_handler(message: types.Message) -> None:
         "Кликай по кнопке ниже, крути колесо и забирай призы!",
         reply_markup=keyboard
     )
+
+
+@dp.message(F.contact)
+async def delete_contact_handler(message: types.Message) -> None:
+    """
+    Automatically deletes contact cards sent by users to clean up chat history.
+    """
+    try:
+        await message.delete()
+    except Exception as e:
+        logging.warning(f"Could not delete contact message: {e}")
 
 
 async def main() -> None:

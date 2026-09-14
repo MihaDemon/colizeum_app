@@ -77,7 +77,6 @@ class AuthViewSet(viewsets.ViewSet):
         if not phone_number or not username:
             return Response(
                 {
-                    "error": "User not found. Please register.",
                     "require_registration": True
                 },
                 status=status.HTTP_404_NOT_FOUND

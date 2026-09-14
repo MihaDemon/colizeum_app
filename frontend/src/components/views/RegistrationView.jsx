@@ -1,25 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { styles } from '../../styles/styles';
 
 export default function RegistrationView({ authenticateUser, error, setError }) {
   const [usernameInput, setUsernameInput] = useState('');
-  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localError, setLocalError] = useState('');
+
+  // Clear initial login/auth error when the registration screen first loads
+  useEffect(() => {
+    if (setError) {
+      setError('');
+    }
+  }, [setError]);
+
+  // Extract 10 digits without country code (e.g. +79990000000 -> 9990000000)
+  const formatPhone = (rawPhone) => {
+    if (!rawPhone) return '';
+    const cleaned = String(rawPhone).replace(/\D/g, '');
+    return cleaned.length >= 10 ? cleaned.slice(-10) : cleaned;
+  };
+
+  useEffect(() => {
+    // Attempt to automatically extract phone from Telegram WebApp user object
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (tgUser?.phone_number) {
+      setPhoneNumber(formatPhone(tgUser.phone_number));
+    }
+  }, []);
+
+  const handleRequestContact = () => {
+    if (window.Telegram?.WebApp?.requestContact) {
+      window.Telegram.WebApp.requestContact((sent, response) => {
+        if (sent && response?.responseUnsafe?.contact?.phone_number) {
+          setPhoneNumber(formatPhone(response.responseUnsafe.contact.phone_number));
+        }
+      });
+    }
+  };
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (!/^\d{10}$/.test(phoneInput)) {
-      alert('Введите ровно 10 цифр номера телефона без кода страны.');
+    setLocalError('');
+    if (setError) setError('');
+
+    let finalPhone = phoneNumber;
+    if (!finalPhone) {
+      const tgPhone = window.Telegram?.WebApp?.initDataUnsafe?.user?.phone_number;
+      if (tgPhone) {
+        finalPhone = formatPhone(tgPhone);
+      }
+    }
+
+    if (!finalPhone) {
+      setLocalError('Не удалось определить номер телефона Telegram. Пожалуйста, предоставьте доступ к контакту.');
       return;
     }
+
     setIsSubmitting(true);
-    setError('');
-    await authenticateUser({ 
-      username: usernameInput.trim(), 
-      phone_number: `${phoneInput}`
-    });
-    setIsSubmitting(false);
+    try {
+      await authenticateUser({ 
+        username: usernameInput.trim(), 
+        phone_number: finalPhone
+      });
+    } catch (err) {
+      setLocalError(err?.message || 'Ошибка регистрации');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Only display errors that occur during active form interaction/submission
+  const displayError = localError || error;
 
   return (
     <div style={styles.container}>
@@ -43,23 +95,17 @@ export default function RegistrationView({ authenticateUser, error, setError }) 
             />
           </div>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>НОМЕР ТЕЛЕФОНА</label>
-            <div style={styles.phoneBox}>
-              <span style={styles.phonePrefix}>+7</span>
-              <input 
-                type="tel" 
-                required 
-                maxLength="10" 
-                placeholder="(999) 000-00-00" 
-                value={phoneInput} 
-                onChange={(e) => setPhoneInput(e.target.value)} 
-                style={styles.phoneField} 
-              />
-            </div>
-          </div>
+          {!phoneNumber && window.Telegram?.WebApp?.requestContact && (
+            <button 
+              type="button" 
+              onClick={handleRequestContact} 
+              style={{ ...styles.submitButton, marginBottom: '15px', backgroundColor: '#3182ce' }}
+            >
+              📱 ПОДТВЕРДИТЬ ТЕЛЕФОН TELEGRAM
+            </button>
+          )}
 
-          {error && <p style={styles.errorText}>{error}</p>}
+          {displayError && <p style={styles.errorText}>{displayError}</p>}
 
           <button type="submit" disabled={isSubmitting} style={styles.submitButton}>
             {isSubmitting ? 'ЗАГРУЗКА...' : 'ВОЙТИ В ARENA HUB 🚀'}
