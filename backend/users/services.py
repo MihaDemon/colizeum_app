@@ -1,34 +1,17 @@
 import csv
 import io
-import os
 import requests
 
 from django.db import transaction
 from django.core.cache import cache
 
 from users.models import ClubUser
-from users.utils import get_cookie_string
+from users.utils import get_cookie_token_string, get_guest_id
 
-CLS_EXPORT_URL = os.getenv("CLS_EXPORT_URL")
-
-# Externalize headers and cookies to environment variables or settings
-
-PAYLOAD = {
-    "export": True,
-    "title": "Статистика и балансы гостей",
-    "search": {"value": ""},
-    "order": [{"column": 0, "dir": "asc"}],
-    "guests_group": "0",
-    "last_visit_from": "",
-    "last_visit_to": "",
-    "date_insert_from": "",
-    "date_insert_to": "",
-    "balance_from": "",
-    "balance_to": "",
-    "bonus_balance_from": "",
-    "bonus_balance_to": "",
-    "guests_group_hand": "0"
-}
+from users.constraints import (
+    BASE_URL,
+    COOKIE_CACHE_KEY,
+)
 
 
 def parse_fio(fio_raw: str) -> tuple[str, str, str]:
@@ -57,23 +40,72 @@ def parse_fio(fio_raw: str) -> tuple[str, str, str]:
 
 
 def get_database():
-    cookie_string = cache.get("cls_cookie")
+    url = f"{BASE_URL}/guests_search/search_export_csv.php"
+
+    cookie_string = cache.get(COOKIE_CACHE_KEY)
 
     if not cookie_string:
-        cookie_string = get_cookie_string()
+        cookie_string = get_cookie_token_string()[0]
 
     headers = {
         "Cookie": cookie_string,
     }
 
+    payload = {
+        "export": True,
+        "title": "Статистика и балансы гостей",
+        "search": {"value": ""},
+        "order": [{"column": 0, "dir": "asc"}],
+        "guests_group": "0",
+        "last_visit_from": "",
+        "last_visit_to": "",
+        "date_insert_from": "",
+        "date_insert_to": "",
+        "balance_from": "",
+        "balance_to": "",
+        "bonus_balance_from": "",
+        "bonus_balance_to": "",
+        "guests_group_hand": "0"
+    }
+
     response = requests.post(
-        CLS_EXPORT_URL,
-        json=PAYLOAD,
+        url,
+        json=payload,
         headers=headers,
         timeout=30,
     )
 
     return response
+
+
+def edit_guest_bonus_balance(phone_number: str, bonuses: int) -> bool:
+    guest_id = get_guest_id(phone_number)
+
+    if not guest_id:
+        return False
+
+    url = f"{BASE_URL}/master_api/guests/{guest_id}/balance"
+
+    payload = {
+        "type": "bonus_balance",
+        "sum": bonuses,
+    }
+
+    cookie_string, token = get_cookie_token_string()
+
+    headers = {
+        "Cookie": cookie_string,
+        "Authorization": f"Bearer {token}",
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        headers=headers,
+        timeout=30,
+    )
+
+    return response.status_code == 200
 
 
 def sync_guests_database():
