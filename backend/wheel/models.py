@@ -13,9 +13,8 @@ class WheelPrize(models.Model):
         verbose_name='Название',
         max_length=50
     )
-    internal_value = models.CharField(
-        verbose_name='Содержимое',
-        max_length=50
+    internal_value = models.IntegerField(
+        verbose_name='Содержимое'
     )
     weight = models.PositiveBigIntegerField(
         verbose_name='Шанс выпадения',
@@ -210,24 +209,9 @@ class Spin(models.Model):
         null=True,
         related_name='winnig_spins'
     )
-    promo_code = models.CharField(
-        verbose_name='Промокод',
-        max_length=20,
-        unique=True,
-        blank=True
-    )
-    is_redeemed = models.BooleanField(
-        verbose_name='Получен',
-        default=False
-    )
     spun_at = models.DateTimeField(
         verbose_name='Прокручен',
         auto_now_add=True
-    )
-    redeemed_at = models.DateTimeField(
-        verbose_name='Использован',
-        null=True,
-        blank=True
     )
 
     class Meta:
@@ -238,23 +222,12 @@ class Spin(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
-        if not self.promo_code:
-            unique_id = get_random_string(10).upper()
-
-            self.promo_code = f'FORT-{unique_id}'
-
-        just_redeemed = False
-
-        if self.is_redeemed and not self.redeemed_at:
-            self.redeemed_at = timezone.now()
-            just_redeemed = True
-
         super().save(*args, **kwargs)
 
         if is_new:
             self.user.remove_spin()
 
-        if just_redeemed and self.prize:
+        if is_new and self.prize:
             self.user.add_monthly_points(self.prize.points)
 
     def __str__(self):

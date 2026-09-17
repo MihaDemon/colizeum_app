@@ -10,14 +10,17 @@ User = get_user_model()
 
 def check_and_reset_monthly_ladder():
     """
-    Runs periodically every 10 minutes.
-    Uses Django's cache backend to track the last reset month safely across workers.
+    Runs periodically and resets the ladder once when a new month starts.
+
+    The latest archive restores the last processed month after a scheduler
+    restart. The cache is only an optimization and does not need to persist
+    between processes.
     """
     now = timezone.localtime(timezone.now())
     current_month = now.month
     current_year = now.year
 
-    # Create a unique cache key for the last processed month
+    # Create a unique cache key for the last processed month.
     cache_key = 'last_ladder_reset_month'
     last_processed = cache.get(cache_key)
 
@@ -35,6 +38,12 @@ def check_and_reset_monthly_ladder():
                     f"{latest_archive.month_name} {latest_archive.year}."
                 )
             )
+        else:
+            # Do not wipe points on the first ever scheduler run. Establish
+            # the current month as the starting period instead.
+            last_processed = (current_year, current_month)
+            cache.set(cache_key, last_processed, timeout=None)
+            return
 
     # Compare current year/month with what's stored in the cache
     if last_processed != (current_year, current_month):
@@ -66,7 +75,7 @@ def check_and_reset_monthly_ladder():
         }
         month_str = months_ru.get(current_month, str(current_month))
 
-        # 2. Save the historical snapshot model instance
+        # Save the historical snapshot model instance before resetting points.
         MonthlyLadderArchive.objects.create(
             month_name=month_str,
             year=current_year,
@@ -76,10 +85,10 @@ def check_and_reset_monthly_ladder():
             top_players=top_players_list
         )
 
-        # Reset monthly points using your User model methods
+        # Reset all users in one database query.
         User.objects.all().update(monthly_points=0)
 
-        # Save the current month into cache so other workers know it's done
+        # Save the current month into cache so the next check is a no-op.
         cache.set(cache_key, (current_year, current_month), timeout=None)
 
         print(

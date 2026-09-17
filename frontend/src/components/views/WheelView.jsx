@@ -3,7 +3,7 @@ import { styles } from '../../styles/styles';
 import { getAuthToken } from '../../utils/helpers';
 import { spinWheelApi } from '../../services/api';
 
-export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProfile, fetchPromocodes, fetchUserPosition, canSpin }) {
+export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProfile, fetchUserPosition, canSpin }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [wheelStatusText, setWheelStatusText] = useState('SPIN THE WHEEL & WIN BONUSES!');
 
@@ -146,7 +146,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
 
         const textDist = radius * 0.65;
         const prizeLabel = sector.label || sector.name || '';
-        const prizeVal = sector.val || sector.value || '';
+        const prizeVal = sector.internal_value ?? '';
 
         if (prizeLabel) {
           ctx.font = "800 9px sans-serif";
@@ -237,7 +237,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       const token = getAuthToken();
       const spinData = await spinWheelApi(token);
 
-      const winningIndex = wheelPrizes.findIndex(p => p.id === spinData.prize);
+      const winningIndex = wheelPrizes.findIndex(p => p.id === spinData.prize_id);
       const targetIndex = winningIndex !== -1 ? winningIndex : 0;
 
       const arcAngle = (Math.PI * 2) / wheelPrizes.length;
@@ -255,12 +255,12 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
           if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
           const prizeObj = wheelPrizes[targetIndex];
-          const fullLabel = prizeObj.label ? `${prizeObj.label} ${prizeObj.val || ''}` : prizeObj.val || 'БОНУС';
+          const bonusAmount = spinData.bonus_amount ?? prizeObj.internal_value;
+          const fullLabel = prizeObj.label || 'БОНУС';
           
-          setWheelStatusText(`ВЫ ВЫИГРАЛИ: ${fullLabel.toUpperCase()}! 🎉`);
-          setWonPrize({ title: fullLabel, code: spinData.promo_code });
+          setWheelStatusText(`ВЫ ВЫИГРАЛИ: ${fullLabel.toUpperCase()} +${bonusAmount}! 🎉`);
+          setWonPrize({ title: fullLabel, bonus: bonusAmount });
           fetchProfile(token);
-          fetchPromocodes(token);
           fetchUserPosition(token);
         }
       }, 100);

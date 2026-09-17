@@ -26,10 +26,10 @@ export default function Header({ profile, setActiveTab, refreshAppData, setShowP
         </div>
         <button 
           onClick={() => setShowPrizesModal(true)} 
-          style={styles.promocodeButton}
-          title="Мои промокоды"
+          style={styles.winsButton}
+          title="Мои выигрыши"
         >
-          📜
+          🎁
         </button>
       </div>
     </header>

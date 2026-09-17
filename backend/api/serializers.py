@@ -150,6 +150,8 @@ class SpinSerializer(serializers.ModelSerializer):
     Serializer for user Wheel Spins.
     """
     prize = serializers.ReadOnlyField(source='prize.label')
+    prize_id = serializers.ReadOnlyField(source='prize.id')
+    bonus_amount = serializers.ReadOnlyField(source='prize.internal_value')
 
     class Meta:
         model = Spin
@@ -157,18 +159,16 @@ class SpinSerializer(serializers.ModelSerializer):
             'id',
             'user',
             'prize',
-            'promo_code',
-            'is_redeemed',
-            'spun_at',
-            'redeemed_at'
+            'prize_id',
+            'bonus_amount',
+            'spun_at'
         ]
-        # Protect fields generated in the model's save() method
         read_only_fields = [
             'user',
             'prize',
-            'promo_code',
-            'spun_at',
-            'redeemed_at'
+            'prize_id',
+            'bonus_amount',
+            'spun_at'
         ]
 
 

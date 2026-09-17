@@ -12,7 +12,6 @@ export default function AdminView({ profile }) {
   const [transFeedback, setTransFeedback] = useState(null);
 
   const [promoCodeInput, setPromoCodeInput] = useState('');
-  const [promoType, setPromoType] = useState('auto');
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoFeedback, setPromoFeedback] = useState(null);
 
@@ -62,10 +61,7 @@ export default function AdminView({ profile }) {
     setPromoLoading(true);
     setPromoFeedback(null);
 
-    let endpoint = `${API_BASE_URL}/api/spins/redeem/`;
-    if (promoType === 'daily' || (promoType === 'auto' && cleanedCode.startsWith('DAILY'))) {
-      endpoint = `${API_BASE_URL}/api/daily-bonuses/redeem/`;
-    }
+    const endpoint = `${API_BASE_URL}/api/daily-bonuses/redeem/`;
 
     try {
       const data = await adminRedeemApi(cleanedCode, endpoint);
@@ -110,13 +106,13 @@ export default function AdminView({ profile }) {
           <span style={{ backgroundColor: '#FFE500', color: '#0E0E10', fontWeight: '900', fontSize: '9px', padding: '3px 6px', borderRadius: '4px' }}>ADMIN</span>
         </header>
 
-        {/* PROMOCODE REDEEM FORM */}
+        {/* DAILY BONUS PROMOCODE REDEEM FORM */}
         <section style={styles.adminCard}>
           <div style={styles.adminCardHeader}>
             <span style={{ fontSize: '22px' }}>🎟️</span>
             <div>
               <h2 style={styles.adminCardTitle}>ПОГАШЕНИЕ ПРОМОКОДА</h2>
-              <p style={styles.adminCardSub}>Активация призов Wheel Spins и Daily Bonus</p>
+              <p style={styles.adminCardSub}>Активация ежедневного бонуса</p>
             </div>
           </div>
 
@@ -126,24 +122,11 @@ export default function AdminView({ profile }) {
               <input
                 type="text"
                 required
-                placeholder="FORT-ABC123XYZ или DAILY-ABC123XYZ"
+                placeholder="DAILY-ABC123XYZ"
                 value={promoCodeInput}
                 onChange={(e) => setPromoCodeInput(e.target.value)}
                 style={{ ...styles.textInput, textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 'bold', color: '#FFE500', fontSize: '14px' }}
               />
-            </div>
-
-            <div style={styles.inputGroup}>
-              <label style={styles.inputLabel}>ТИП ПРИЗА</label>
-              <select
-                value={promoType}
-                onChange={(e) => setPromoType(e.target.value)}
-                style={styles.selectInput}
-              >
-                <option value="auto">Автоопределение (по префиксу)</option>
-                <option value="spin">Спин Колеса (FORT-...)</option>
-                <option value="daily">Ежедневный бонус (DAILY-...)</option>
-              </select>
             </div>
 
             {promoFeedback && (
@@ -154,7 +137,7 @@ export default function AdminView({ profile }) {
             )}
 
             <button type="submit" disabled={promoLoading} style={styles.submitButton}>
-              {promoLoading ? 'ПРОВЕРКА...' : 'ПОГАСИТЬ ПРОМОКОД 📜'}
+              {promoLoading ? 'ПРОВЕРКА...' : 'ПОГАСИТЬ DAILY БОНУС 📜'}
             </button>
           </form>
         </section>

@@ -12,7 +12,7 @@ export const styles = {
   pointsBadge: { backgroundColor: '#18181C', border: '1px solid #2A2A32', padding: '6px 14px', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '4px' },
   ptsLabel: { fontSize: '10px', color: '#888888', fontWeight: 'bold' },
   ptsValue: { fontSize: '12px', fontWeight: '900', color: '#FFE500' },
-  promocodeButton: { backgroundColor: '#18181C', border: '1px solid #2A2A32', borderRadius: '16px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' },
+  winsButton: { backgroundColor: '#18181C', border: '1px solid #2A2A32', borderRadius: '16px', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' },
 
   // Registration View Styles
   regWrapper: { width: '100%', maxWidth: '380px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' },
@@ -48,8 +48,9 @@ export const styles = {
   navButton: { background: 'none', border: 'none', fontWeight: '900', fontSize: '10px', cursor: 'pointer', letterSpacing: '0.5px' },
   modalOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100, padding: '20px' },
   modalCard: { backgroundColor: '#18181C', border: '2px solid #FFE500', borderRadius: '20px', padding: '20px', width: '100%', maxWidth: '300px', textAlign: 'center' },
+  bonusAmountBox: { backgroundColor: '#0E0E10', border: '1px solid #FFE500', borderRadius: '10px', padding: '14px', margin: '10px 0' },
   promoBox: { backgroundColor: '#0E0E10', border: '1px dashed #FFE500', borderRadius: '10px', padding: '10px', margin: '10px 0' },
-  promoHistoryItem: { backgroundColor: '#0E0E10', border: '1px solid #2A2A32', borderRadius: '10px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' },
+  winHistoryItem: { backgroundColor: '#0E0E10', border: '1px solid #2A2A32', borderRadius: '10px', padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' },
   toastNotification: { position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#FFE500', color: '#0E0E10', padding: '10px 18px', borderRadius: '20px', fontWeight: '900', fontSize: '12px', zIndex: 1000, boxShadow: '0 4px 15px rgba(255, 229, 0, 0.4)' },
   errorText: { color: '#F44336', fontSize: '12px', textAlign: 'center', margin: 0 },
   successBox: { backgroundColor: 'rgba(76, 175, 80, 0.15)', border: '1px solid #4CAF50', color: '#81C784', padding: '8px', borderRadius: '8px', fontSize: '10px', fontWeight: 'bold' },

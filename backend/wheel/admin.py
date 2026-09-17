@@ -18,7 +18,7 @@ class WheelPrizeAdmin(admin.ModelAdmin):
         'is_active'
     )
     list_filter = ('is_active',)
-    search_fields = ('label', 'internal_value')
+    search_fields = ('label',)
     list_editable = ('is_active', 'weight', 'points')
 
 
@@ -70,24 +70,20 @@ class SpinAdmin(admin.ModelAdmin):
     list_display = (
         'user',
         'prize',
-        'promo_code',
-        'is_redeemed',
         'spun_at'
     )
-    list_filter = (
-        'is_redeemed',
-        'spun_at'
-    )
+    list_filter = ('spun_at',)
     search_fields = (
         'user__username',
         'user__telegram_id',
-        'promo_code'
+        'prize__label'
     )
-    readonly_fields = (
-        'promo_code',
-        'spun_at',
-        'redeemed_at'
-    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(PromocodePrize)

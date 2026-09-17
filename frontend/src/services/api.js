@@ -25,11 +25,11 @@ export const fetchGlobalLeaderboardApi = async (token) => {
   return res.json();
 };
 
-export const fetchPromocodesApi = async (token) => {
+export const fetchSpinsApi = async (token) => {
   const res = await fetch(`${API_BASE_URL}/api/spins/`, {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` }
   });
-  if (!res.ok) throw new Error('Failed to fetch promocodes');
+  if (!res.ok) throw new Error('Failed to fetch wins');
   return res.json();
 };
 

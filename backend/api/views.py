@@ -14,6 +14,7 @@ from django.conf import settings
 
 from users.models import ClubUser, ClubTransaction
 from users.utils import validate_telegram_data
+from users.services import edit_guest_bonus_balance
 from wheel.models import (
     WheelPrize,
     DailyBonusPrize,
@@ -47,11 +48,17 @@ class AuthViewSet(viewsets.ViewSet):
         init_data = request.data.get('initData')
 
         if not init_data:
-            return Response({"error": "No initData provided"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "No initData provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 1. SECURITY CHECK: Validate Telegram signature
         if not validate_telegram_data(init_data, settings.TELEGRAM_BOT_TOKEN):
-            return Response({"error": "Invalid Telegram signature"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Invalid Telegram signature"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         # Extract authentic telegram_id from the validated data
         parsed_data = dict(parse_qsl(init_data))
@@ -59,7 +66,10 @@ class AuthViewSet(viewsets.ViewSet):
         telegram_id = str(user_data.get('id'))
 
         if not telegram_id:
-            return Response({"error": "Could not extract user ID"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Could not extract user ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # 2. LOGIN ATTEMPT: Check if user already exists
         user = User.objects.filter(telegram_id=telegram_id).first()
@@ -305,7 +315,9 @@ class SpinViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Spin.objects.filter(user=self.request.user)
+        return Spin.objects.select_related('prize').filter(
+            user=self.request.user
+        )
 
     def create(self, request, *args, **kwargs):
         user = request.user
@@ -332,6 +344,14 @@ class SpinViewSet(viewsets.ModelViewSet):
         # random.choices picks a prize based on the assigned weights
         selected_prize = random.choices(prizes_list, weights=weights, k=1)[0]
 
+        if not edit_guest_bonus_balance(
+            user.mobile_phone, selected_prize.internal_value
+        ):
+            return Response(
+                {"error": "Не удалось обновить бонусный баланс гостя."},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
         # 4. Save the Spin
         # Note: Your model's save() method automatically calls user.remove_spin()
         # and generates the promo code.
@@ -342,6 +362,7 @@ class SpinViewSet(viewsets.ModelViewSet):
 
         # 5. Return the winning prize to the frontend
         serializer = self.get_serializer(spin)
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(

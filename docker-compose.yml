@@ -36,6 +36,35 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+  
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: colizeum_scheduler
+    restart: always
+    command: ["python", "manage.py", "run_scheduler"]
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   # 2. React Frontend Static Generator
   frontend:

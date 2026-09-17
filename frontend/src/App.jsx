@@ -6,7 +6,7 @@ import {
   fetchProfileApi, 
   fetchUserPositionApi, 
   fetchGlobalLeaderboardApi, 
-  fetchPromocodesApi, 
+  fetchSpinsApi,
   fetchDailyBonusesApi, 
   fetchWheelPrizesApi, 
   authenticateUserApi 
@@ -36,7 +36,7 @@ export default function App() {
 
   // Modal states
   const [showPrizesModal, setShowPrizesModal] = useState(false);
-  const [userPromocodes, setUserPromocodes] = useState([]);
+  const [userSpins, setUserSpins] = useState([]);
   const [wonPrize, setWonPrize] = useState(null);
 
   // Copy Feedback Toast State
@@ -77,12 +77,12 @@ export default function App() {
     }
   };
 
-  const fetchPromocodes = async (token) => {
+  const fetchSpins = async (token) => {
     try {
-      const data = await fetchPromocodesApi(token);
-      setUserPromocodes(Array.isArray(data) ? data : []);
+      const data = await fetchSpinsApi(token);
+      setUserSpins(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Ошибка при загрузке промокодов", err);
+      console.error("Ошибка при загрузке выигрышей", err);
     }
   };
 
@@ -101,7 +101,7 @@ export default function App() {
     await Promise.all([
       fetchProfile(token),
       fetchUserPosition(token),
-      fetchPromocodes(token),
+      fetchSpins(token),
       fetchDailyBonuses(token)
     ]);
   };
@@ -121,7 +121,7 @@ export default function App() {
 
       await fetchProfile(token);
       await fetchUserPosition(token);
-      await fetchPromocodes(token);
+      await fetchSpins(token);
       await fetchDailyBonuses(token);
       setNeedsRegistration(false);
     } catch (err) {
@@ -254,7 +254,6 @@ export default function App() {
             wheelPrizes={wheelPrizes} 
             setWonPrize={setWonPrize} 
             fetchProfile={fetchProfile} 
-            fetchPromocodes={fetchPromocodes} 
             fetchUserPosition={fetchUserPosition} 
             canSpin={canSpin} 
           />
@@ -288,14 +287,12 @@ export default function App() {
       <PrizesModal 
         showPrizesModal={showPrizesModal} 
         setShowPrizesModal={setShowPrizesModal} 
-        userPromocodes={userPromocodes} 
-        copyToClipboard={copyToClipboard} 
+        userSpins={userSpins}
       />
 
       <WinnerModal 
         wonPrize={wonPrize} 
         setWonPrize={setWonPrize} 
-        copyToClipboard={copyToClipboard} 
       />
     </div>
   );
