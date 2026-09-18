@@ -8,13 +8,35 @@ export default function HubLogo({ size = 30 }) {
       viewBox="0 0 32 32"
       role="img"
       aria-label="Главная"
+      shapeRendering="geometricPrecision"
       style={{ display: 'block', flexShrink: 0 }}
     >
-      <path d="M5 14 16 5l11 9v13H5Z" fill="#FFE500" stroke="#0E0E10" strokeWidth="1.5" />
-      <path d="M8 14.5 16 8l8 6.5V25H8Z" fill="#0E0E10" />
-      <path d="M12 25v-7h8v7" fill="#FFE500" stroke="#0E0E10" strokeWidth="1.2" />
-      <path d="M11 14h3v3h-3zM18 14h3v3h-3z" fill="#00E5FF" />
-      <path d="m16 3 2 3h-4Z" fill="#FF007A" />
+      <circle cx="16" cy="16" r="14.55" fill="#000000" />
+
+      <path
+        d="M3.35 12.2C5.15 6.85 10.05 3.05 16 3.05s10.85 3.8 12.65 9.15H3.35Z"
+        fill="#FFEE32"
+      />
+      <path
+        d="M3.35 19.8h11.35L16 17.55l1.3 2.25h11.35C26.85 25.15 21.95 28.95 16 28.95S5.15 25.15 3.35 19.8Z"
+        fill="#FFEE32"
+      />
+
+      <path
+        d="m8.75 14.35 3.55 3.55m0-3.55-3.55 3.55"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="1.12"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="22.55"
+        cy="16"
+        r="2.5"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="1.08"
+      />
     </svg>
   );
 }

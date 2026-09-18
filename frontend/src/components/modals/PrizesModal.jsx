@@ -1,5 +1,6 @@
 import React from 'react';
 import { styles } from '../../styles/styles';
+import DailyBonusLogo from '../DailyBonusLogo';
 
 export default function PrizesModal({ showPrizesModal, setShowPrizesModal, userSpins }) {
   if (!showPrizesModal) return null;
@@ -7,7 +8,10 @@ export default function PrizesModal({ showPrizesModal, setShowPrizesModal, userS
   return (
     <div style={styles.modalOverlay}>
       <div style={{ ...styles.modalCard, maxWidth: '340px' }}>
-        <h2 style={{ color: '#FFE500', marginBottom: '4px', fontSize: '16px', fontWeight: '900' }}>МОИ ВЫИГРЫШИ 🎁</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', marginBottom: '4px' }}>
+          <DailyBonusLogo size={20} />
+          <h2 style={{ color: '#FFE500', margin: 0, fontSize: '16px', fontWeight: '900' }}>МОИ ВЫИГРЫШИ</h2>
+        </div>
         <p style={{ fontSize: '10px', color: '#888', marginBottom: '14px' }}>История бонусов, выигранных на колесе COLIZEUM</p>
 
         <div 

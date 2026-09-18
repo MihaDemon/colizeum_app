@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { styles } from '../../styles/styles';
 import { getAuthToken, formatDate } from '../../utils/helpers';
 import { claimDailyBonusApi } from '../../services/api';
+import DailyBonusLogo from '../DailyBonusLogo';
+import PromoCodeLogo from '../PromoCodeLogo';
 
 export default function DailyBonusView({ profile, canClaimBonus, latestDailyBonus, setLatestDailyBonus, fetchProfile, copyToClipboard }) {
   const [isOpeningGift, setIsOpeningGift] = useState(false);
@@ -29,7 +31,10 @@ export default function DailyBonusView({ profile, canClaimBonus, latestDailyBonu
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0' }}>
-      <h3 style={{ color: '#FFE500', fontSize: '18px', fontWeight: '900', margin: '0 0 4px 0' }}>DAILY BONUS 🎁</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+        <DailyBonusLogo size={23} />
+        <h3 style={{ color: '#FFE500', fontSize: '18px', fontWeight: '900', margin: 0 }}>DAILY BONUS</h3>
+      </div>
       <p style={{ color: '#888', fontSize: '11px', textAlign: 'center', marginBottom: '16px' }}>
         {canClaimBonus ? 'Нажми на подарок, чтобы забрать ежедневную награду!' : 'Ежедневный подарок уже получен'}
       </p>
@@ -57,7 +62,7 @@ export default function DailyBonusView({ profile, canClaimBonus, latestDailyBonu
               transition: 'all 1s'
             }}
           >
-            🎁
+            <DailyBonusLogo size={118} />
           </button>
         ) : (
           /* Promocode Details Box */
@@ -109,9 +114,14 @@ export default function DailyBonusView({ profile, canClaimBonus, latestDailyBonu
                 borderRadius: '12px', 
                 width: '100%', 
                 marginBottom: '14px',
-                cursor: isRedeemed ? 'default' : 'pointer'
+                cursor: isRedeemed ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
               }}
             >
+              <PromoCodeLogo size={19} />
               <span style={{ 
                 fontFamily: 'monospace', 
                 fontWeight: '900', 

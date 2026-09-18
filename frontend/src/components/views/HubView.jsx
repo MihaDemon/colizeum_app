@@ -1,12 +1,16 @@
 import React from 'react';
 import { styles } from '../../styles/styles';
+import WheelLogo from '../WheelLogo';
+import DailyBonusLogo from '../DailyBonusLogo';
+import LadderLogo from '../LadderLogo';
+import HubLogo from '../HubLogo';
 
 export default function HubView({ profile, ladderRank, setActiveTab, canClaimBonus }) {
   return (
     <>
       <div style={styles.userCard}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={styles.avatarBox}>👑</div>
+          <div style={styles.avatarBox}><HubLogo size={30} /></div>
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#FFF', margin: 0 }}>
               {profile?.username || profile?.app_username || 'Игрок'}
@@ -21,7 +25,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
 
       <div onClick={() => setActiveTab('ladder')} style={styles.menuCard}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '22px' }}>🏆</span>
+          <LadderLogo size={30} />
           <div>
             <h4 style={{ fontSize: '13px', fontWeight: '900', color: '#FFF', margin: 0 }}>MONTHLY LADDER</h4>
             <p style={{ fontSize: '10px', color: '#888', margin: '2px 0 0 0' }}>Ежемесячный рейтинг игроков и призовой фонд</p>
@@ -32,7 +36,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
 
       <div onClick={() => setActiveTab('wheel')} style={styles.wheelMenuCard}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>🎡</span>
+          <WheelLogo size={30} />
           <div>
             <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#FFE500', margin: 0 }}>FORTUNE WHEEL</h4>
             <p style={{ fontSize: '10px', color: '#CCC', margin: '2px 0 0 0' }}>Испытай удачу и выигрывай бонусы каждый день!</p>
@@ -54,7 +58,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '22px' }}>🎁</span>
+          <DailyBonusLogo size={30} />
           <div>
             <h4 style={{ 
               fontSize: '13px', 
