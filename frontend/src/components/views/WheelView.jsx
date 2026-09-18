@@ -5,7 +5,7 @@ import { spinWheelApi } from '../../services/api';
 
 export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProfile, fetchUserPosition, canSpin }) {
   const [isSpinning, setIsSpinning] = useState(false);
-  const [wheelStatusText, setWheelStatusText] = useState('SPIN THE WHEEL & WIN BONUSES!');
+  const [wheelStatusText, setWheelStatusText] = useState('КРУТИТЕ КОЛЕСО & ВЫИГРЫВАЙТЕ БОНУСЫ!');
 
   const canvasRef = useRef(null);
   const angleRef = useRef(0);
