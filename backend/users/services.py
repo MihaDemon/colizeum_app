@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import requests
 
 from django.db import transaction
@@ -12,6 +13,9 @@ from users.constraints import (
     BASE_URL,
     COOKIE_CACHE_KEY,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def parse_fio(fio_raw: str) -> tuple[str, str, str]:
@@ -79,33 +83,47 @@ def get_database():
 
 
 def edit_guest_bonus_balance(phone_number: str, bonuses: int) -> bool:
-    guest_id = get_guest_id(phone_number)
+    """Credit a wheel prize in the external club system.
 
-    if not guest_id:
+    The external service is an integration boundary. Network, certificate,
+    authentication, and malformed-response errors must not turn the spins
+    endpoint into an unhandled 500 response. The caller can roll back the
+    local spin and return a controlled error instead.
+    """
+    try:
+        guest_id = get_guest_id(phone_number)
+
+        if not guest_id:
+            return False
+
+        url = f"{BASE_URL}/master_api/guests/{guest_id}/balance"
+
+        payload = {
+            "type": "bonus_balance",
+            "sum": bonuses,
+        }
+
+        cookie_string, token = get_cookie_token_string()
+
+        headers = {
+            "Cookie": cookie_string,
+            "Authorization": f"Bearer {token}",
+        }
+
+        response = requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
+
+        return response.status_code == 200
+    except Exception:
+        logger.exception(
+            "Failed to credit wheel bonus for phone number %s",
+            phone_number,
+        )
         return False
-
-    url = f"{BASE_URL}/master_api/guests/{guest_id}/balance"
-
-    payload = {
-        "type": "bonus_balance",
-        "sum": bonuses,
-    }
-
-    cookie_string, token = get_cookie_token_string()
-
-    headers = {
-        "Cookie": cookie_string,
-        "Authorization": f"Bearer {token}",
-    }
-
-    response = requests.post(
-        url,
-        json=payload,
-        headers=headers,
-        timeout=30,
-    )
-
-    return response.status_code == 200
 
 
 def sync_guests_database():

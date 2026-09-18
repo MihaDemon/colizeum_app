@@ -17,7 +17,7 @@ export default function LeaderboardView({ leaderboardList, profile }) {
             const isCurrentUser = player.username === profile?.username;
             return (
               <div 
-                key={player.id} 
+                key={`${player.username}-${player.position}`}
                 style={{ 
                   ...styles.leaderboardItem,
                   border: isCurrentUser ? '1px solid #FFE500' : '1px solid #2A2A32',

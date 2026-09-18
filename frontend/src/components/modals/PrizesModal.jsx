@@ -33,7 +33,7 @@ export default function PrizesModal({ showPrizesModal, setShowPrizesModal, userS
             userSpins.map((item, idx) => {
               return (
                 <div 
-                  key={item.id ?? idx}
+                  key={`${item.spun_at}-${idx}`}
                   style={{ 
                     ...styles.winHistoryItem
                   }}

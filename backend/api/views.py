@@ -31,7 +31,8 @@ from .serializers import (
     DailyBonusPrizeSerializer,
     DailyBonusSerializer,
     SpinSerializer,
-    PromocodePrizeSerializer
+    PromocodePrizeSerializer,
+    LeaderboardSerializer
 )
 
 User = get_user_model()
@@ -145,13 +146,15 @@ class AuthViewSet(viewsets.ViewSet):
         }, status=status.HTTP_201_CREATED)
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+class UserViewSet(viewsets.GenericViewSet):
     """
     Allows reading user profiles. Users can only see their own detailed data.
     """
-    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return User.objects.filter(pk=self.request.user.pk)
 
     @action(detail=False, methods=['get'])
     def me(self, request):
@@ -377,6 +380,20 @@ class SpinViewSet(
 
                 prizes_list = list(active_prizes)
                 weights = [prize.weight for prize in prizes_list]
+
+                # random.choices raises ValueError when every active prize has
+                # a zero weight. Return a useful API error instead of a 500.
+                if not any(weights):
+                    return Response(
+                        {
+                            "error": (
+                                "У активных призов не настроены веса. "
+                                "(Prize weights are not configured)"
+                            )
+                        },
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE
+                    )
+
                 selected_prize = random.choices(
                     prizes_list,
                     weights=weights,
@@ -436,15 +453,19 @@ class LeaderboardViewSet(viewsets.ReadOnlyModelViewSet):
     Returns the top players ranked by monthly points for the ladder.
     Endpoint: GET /api/leaderboard/
     """
-    serializer_class = UserSerializer
-    permission_codes = [IsAuthenticated]
+    serializer_class = LeaderboardSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         # Return users sorted highest-to-lowest by monthly points
-        return User.objects.all().filter(
+        return User.objects.filter(
             monthly_points__gt=0
         ).order_by(
             '-monthly_points'
+        ).only(
+            'username',
+            'monthly_points',
+            'daily_streak'
         )[:10]
 
     def list(self, request, *args, **kwargs):

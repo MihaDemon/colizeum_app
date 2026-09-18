@@ -27,23 +27,41 @@ class ClubUserSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # Dynamically pull the result of the can_spin() method
+    """Safe profile payload for the authenticated user only."""
     can_spin = serializers.ReadOnlyField()
     can_claim_daily_bonus = serializers.ReadOnlyField()
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'telegram_id', 'mobile_phone',
-            'monthly_points', 'available_spins', 'last_spin',
-            'total_spins', 'daily_streak', 'can_spin',
-            'can_claim_daily_bonus', 'is_staff'
+            'username',
+            'available_spins',
+            'total_spins',
+            'daily_streak',
+            'can_spin',
+            'can_claim_daily_bonus',
+            'is_staff'
         ]
-        # Prevent users from artificially modifying their stats
         read_only_fields = [
-            'monthly_points', 'available_spins', 'last_spin',
-            'total_spins', 'daily_streak', 'is_staff'
+            'username',
+            'available_spins',
+            'total_spins',
+            'daily_streak',
+            'is_staff'
         ]
+
+
+class LeaderboardSerializer(serializers.ModelSerializer):
+    """Only the public fields needed to render the monthly ladder."""
+
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'monthly_points',
+            'daily_streak'
+        ]
+        read_only_fields = fields
 
 
 class ClubTransactionSerializer(serializers.ModelSerializer):
@@ -96,7 +114,9 @@ class WheelPrizeSerializer(serializers.ModelSerializer):
     class Meta:
         model = WheelPrize
         fields = [
-            'id', 'label', 'internal_value', 'weight', 'is_active', 'points'
+            'id',
+            'label',
+            'is_active'
         ]
 
 
@@ -107,7 +127,8 @@ class DailyBonusPrizeSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyBonusPrize
         fields = [
-            'id', 'label', 'internal_value', 'weight', 'is_active', 'points'
+            'id',
+            'label'
         ]
 
 
@@ -122,8 +143,6 @@ class DailyBonusSerializer(serializers.ModelSerializer):
     class Meta:
         model = DailyBonus
         fields = [
-            'id',
-            'user',
             'prize',
             'promo_code',
             'is_redeemed',
@@ -149,23 +168,17 @@ class SpinSerializer(serializers.ModelSerializer):
     """
     Serializer for user Wheel Spins.
     """
-    prize = serializers.ReadOnlyField(source='prize.label')
     prize_id = serializers.ReadOnlyField(source='prize.id')
     bonus_amount = serializers.ReadOnlyField(source='prize.internal_value')
 
     class Meta:
         model = Spin
         fields = [
-            'id',
-            'user',
-            'prize',
             'prize_id',
             'bonus_amount',
             'spun_at'
         ]
         read_only_fields = [
-            'user',
-            'prize',
             'prize_id',
             'bonus_amount',
             'spun_at'
@@ -179,8 +192,6 @@ class PromocodePrizeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PromocodePrize
         fields = [
-            'id',
-            'user',
             'label',
             'internal_value',
             'promo_code',

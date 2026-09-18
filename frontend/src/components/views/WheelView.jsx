@@ -241,7 +241,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
           if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
 
           const prizeObj = wheelPrizes[targetIndex];
-          const bonusAmount = spinData.bonus_amount ?? prizeObj.internal_value;
+          const bonusAmount = spinData.bonus_amount ?? 0;
           const fullLabel = prizeObj.label || 'БОНУС';
           
           setWheelStatusText(`ВЫ ВЫИГРАЛИ: ${fullLabel.toUpperCase()}`);
