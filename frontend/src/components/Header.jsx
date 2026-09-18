@@ -1,7 +1,17 @@
 import React from 'react';
 import { styles } from '../styles/styles';
+import PromoRefreshLogo from './PromoRefreshLogo';
 
 export default function Header({ profile, setActiveTab, refreshAppData, setShowPrizesModal }) {
+  const handleRefresh = () => {
+    refreshAppData();
+  };
+
+  const handleWinsClick = async () => {
+    setShowPrizesModal(true);
+    await refreshAppData();
+  };
+
   return (
     <header style={styles.header}>
       <div 
@@ -20,16 +30,24 @@ export default function Header({ profile, setActiveTab, refreshAppData, setShowP
       </div>
 
       <div style={styles.headerRight}>
-        <div style={styles.pointsBadge}>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          style={{ ...styles.pointsBadge, cursor: 'pointer' }}
+          title="Обновить количество спинов"
+          aria-label="Обновить количество спинов"
+        >
           <span style={styles.ptsLabel}>SPN:</span>
           <span style={styles.ptsValue}>{profile?.available_spins ?? 0}</span>
-        </div>
-        <button 
-          onClick={() => setShowPrizesModal(true)} 
+        </button>
+        <button
+          type="button"
+          onClick={handleWinsClick}
           style={styles.winsButton}
-          title="Мои выигрыши"
+          title="Обновить мои промокоды и выигрыши"
+          aria-label="Обновить мои промокоды и выигрыши"
         >
-          🎁
+          <PromoRefreshLogo size={24} />
         </button>
       </div>
     </header>

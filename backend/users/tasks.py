@@ -1,5 +1,6 @@
 from django.utils import timezone
 from django.core.cache import cache
+from django.db import transaction
 from django.db.models import Sum
 from django.contrib.auth import get_user_model
 
@@ -19,6 +20,12 @@ def check_and_reset_monthly_ladder():
     now = timezone.localtime(timezone.now())
     current_month = now.month
     current_year = now.year
+    current_period = (current_year, current_month)
+
+    if current_month == 1:
+        previous_period = (current_year - 1, 12)
+    else:
+        previous_period = (current_year, current_month - 1)
 
     # Create a unique cache key for the last processed month.
     cache_key = 'last_ladder_reset_month'
@@ -27,8 +34,16 @@ def check_and_reset_monthly_ladder():
     if not last_processed:
         latest_archive = MonthlyLadderArchive.objects.first()
         if latest_archive:
+            latest_period = (latest_archive.year, latest_archive.month)
+
+            # If the previous month is already archived, the reset completed
+            # before the cache was lost. Do not erase points earned this month.
+            if latest_period == previous_period:
+                cache.set(cache_key, current_period, timeout=None)
+                return
+
             # Sync cache with what's actually stored in the database
-            last_processed = (latest_archive.year, latest_archive.month)
+            last_processed = latest_period
 
             cache.set(cache_key, last_processed, timeout=None)
 
@@ -41,12 +56,12 @@ def check_and_reset_monthly_ladder():
         else:
             # Do not wipe points on the first ever scheduler run. Establish
             # the current month as the starting period instead.
-            last_processed = (current_year, current_month)
+            last_processed = current_period
             cache.set(cache_key, last_processed, timeout=None)
             return
 
     # Compare current year/month with what's stored in the cache
-    if last_processed != (current_year, current_month):
+    if last_processed != current_period:
         active_users = User.objects.filter(monthly_points__gt=0)
 
         total_players_count = active_users.count()
@@ -73,27 +88,30 @@ def check_and_reset_monthly_ladder():
             5: 'Май', 6: 'Июнь', 7: 'Июль', 8: 'Август',
             9: 'Сентябрь', 10: 'Октябрь', 11: 'Ноябрь', 12: 'Декабрь'
         }
-        month_str = months_ru.get(current_month, str(current_month))
+        archive_year, archive_month = last_processed
+        month_str = months_ru.get(archive_month, str(archive_month))
 
-        # Save the historical snapshot model instance before resetting points.
-        MonthlyLadderArchive.objects.create(
-            month_name=month_str,
-            year=current_year,
-            month=current_month,
-            total_players=total_players_count,
-            total_points=total_points_sum,
-            top_players=top_players_list
-        )
+        # Archive the period whose points are currently accumulated, then
+        # reset them in the same transaction. In a normal run this is the
+        # immediately previous calendar month.
+        with transaction.atomic():
+            MonthlyLadderArchive.objects.create(
+                month_name=month_str,
+                year=archive_year,
+                month=archive_month,
+                total_players=total_players_count,
+                total_points=total_points_sum,
+                top_players=top_players_list
+            )
 
-        # Reset all users in one database query.
-        User.objects.all().update(monthly_points=0)
+            User.objects.all().update(monthly_points=0)
 
         # Save the current month into cache so the next check is a no-op.
-        cache.set(cache_key, (current_year, current_month), timeout=None)
+        cache.set(cache_key, current_period, timeout=None)
 
         print(
             (
                 "[Ladder] Monthly points reset successfully for "
-                f"{current_month}/{current_year}."
+                f"{archive_month}/{archive_year}."
             )
         )

@@ -2,19 +2,20 @@ import random
 import json
 from urllib.parse import parse_qsl
 
-from rest_framework import viewsets, status
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 
 from users.models import ClubUser, ClubTransaction
-from users.utils import validate_telegram_data
 from users.services import edit_guest_bonus_balance
+from users.utils import validate_telegram_data
 from wheel.models import (
     WheelPrize,
     DailyBonusPrize,
@@ -80,7 +81,8 @@ class AuthViewSet(viewsets.ViewSet):
                 "is_new_user": False
             }, status=status.HTTP_200_OK)
 
-        # 3. REGISTRATION CHECK: If user doesn't exist, see if they provided reg info
+        # 3. REGISTRATION CHECK: If user doesn't exist, see if they provided
+        # registration info
         phone_number = request.data.get('phone_number')
         username = request.data.get('username')
 
@@ -98,14 +100,24 @@ class AuthViewSet(viewsets.ViewSet):
 
         except ClubUser.DoesNotExist:
             return Response(
-                {"error": "Пользователь с таким номером телефона не найден в базе клуба."},
+                {
+                    "error": (
+                        "Пользователь с таким номером телефона не найден "
+                        "в базе клуба."
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # 5. VALIDATION: Check if phone is already linked
         if User.objects.filter(mobile_phone=phone_number).exists():
             return Response(
-                {"error": "Этот номер телефона уже привязан к другому Telegram аккаунту."},
+                {
+                    "error": (
+                        "Этот номер телефона уже привязан к другому "
+                        "Telegram аккаунту."
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -120,7 +132,8 @@ class AuthViewSet(viewsets.ViewSet):
         user = User.objects.create(
             username=username,
             telegram_id=telegram_id,
-            mobile_phone=club_user  # Adjust based on how your User model relates to ClubUser
+            # Adjust based on how User relates to ClubUser.
+            mobile_phone=club_user
         )
         user.set_unusable_password()
         user.save()
@@ -158,7 +171,8 @@ class ClubUserViewSet(viewsets.ModelViewSet):
 
 class ClubTransactionViewSet(viewsets.ModelViewSet):
     """
-    Handles receipt transactions. Admins create them; regular users can view their own.
+    Handles receipt transactions. Admins create them; regular users can
+    view their own.
     """
     queryset = ClubTransaction.objects.all()
     serializer_class = ClubTransactionSerializer
@@ -177,7 +191,8 @@ class ClubTransactionViewSet(viewsets.ModelViewSet):
 
 class WheelPrizeViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Read-only endpoint for the frontend to fetch available wheel prizes and their weights.
+    Read-only endpoint for the frontend to fetch available wheel prizes
+    and their weights.
     Only active prizes are returned.
     """
     queryset = WheelPrize.objects.filter(is_active=True)
@@ -207,7 +222,8 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """
-        Generates a new daily bonus if the user is eligible according to the 12:00 PM next-day rule.
+        Generates a new daily bonus if the user is eligible according to the
+        12:00 PM next-day rule.
         Endpoint: POST /api/daily-bonuses/
         """
         user = request.user
@@ -270,11 +286,17 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
 
         if not bonus.can_redeem():
             return Response(
-                {"error": "Этот бонус еще нельзя использовать, просрочен или уже погашен."},
+                {
+                    "error": (
+                        "Этот бонус еще нельзя использовать, просрочен или "
+                        "уже погашен."
+                    )
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 4. Mark as redeemed (triggers points addition and daily streak update)
+        # 4. Mark as redeemed
+        # (triggers points addition and daily streak update)
         bonus.is_redeemed = True
         bonus.save()
 
@@ -307,7 +329,16 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class SpinViewSet(viewsets.ModelViewSet):
+class SpinBonusCreditFailed(Exception):
+    """Raised when a wheel prize cannot be credited to the club account."""
+
+
+class SpinViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet
+):
     """
     Handles wheel spins with secure, weighted random selection on the backend.
     """
@@ -320,95 +351,69 @@ class SpinViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        user = request.user
+        try:
+            with transaction.atomic():
+                # Lock the user row before checking and consuming a spin. This
+                # prevents two simultaneous requests from using one spin twice.
+                user = User.objects.select_for_update().get(pk=request.user.pk)
 
-        # 1. Security Check: Does the user have available spins?
-        if not user.can_spin():
+                if not user.can_spin():
+                    return Response(
+                        {
+                            "error": (
+                                "У вас нет доступных спинов. (No spins "
+                                "available)"
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                active_prizes = WheelPrize.objects.filter(is_active=True)
+                if not active_prizes.exists():
+                    return Response(
+                        {"error": "Нет активных призов. (No active prizes)"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+                prizes_list = list(active_prizes)
+                weights = [prize.weight for prize in prizes_list]
+                selected_prize = random.choices(
+                    prizes_list,
+                    weights=weights,
+                    k=1
+                )[0]
+
+                # Create the spin before calling the external club API. If a
+                # database write fails, no external bonus has been credited.
+                # A failed external credit raises and rolls this transaction
+                # back, restoring the user's spin and ladder points.
+                spin = Spin.objects.create(
+                    user=user,
+                    prize=selected_prize
+                )
+
+                club_user = getattr(user, 'mobile_phone', None)
+                phone_number = getattr(club_user, 'mobile_phone', None)
+
+                if not phone_number or not edit_guest_bonus_balance(
+                    phone_number,
+                    selected_prize.internal_value
+                ):
+                    raise SpinBonusCreditFailed
+
+        except SpinBonusCreditFailed:
             return Response(
-                {"error": "У вас нет доступных спинов. (No spins available)"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 2. Fetch all active prizes
-        active_prizes = WheelPrize.objects.filter(is_active=True)
-        if not active_prizes.exists():
-            return Response(
-                {"error": "Нет активных призов. (No active prizes)"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-        # 3. Weighted Random Selection
-        prizes_list = list(active_prizes)
-        weights = [prize.weight for prize in prizes_list]
-
-        # random.choices picks a prize based on the assigned weights
-        selected_prize = random.choices(prizes_list, weights=weights, k=1)[0]
-
-        if not edit_guest_bonus_balance(
-            user.mobile_phone, selected_prize.internal_value
-        ):
-            return Response(
-                {"error": "Не удалось обновить бонусный баланс гостя."},
+                {
+                    "error": (
+                        "Не удалось начислить бонус на клубный аккаунт. "
+                        "Попробуйте еще раз."
+                    )
+                },
                 status=status.HTTP_502_BAD_GATEWAY
             )
 
-        # 4. Save the Spin
-        # Note: Your model's save() method automatically calls user.remove_spin()
-        # and generates the promo code.
-        spin = Spin.objects.create(
-            user=user,
-            prize=selected_prize
-        )
-
-        # 5. Return the winning prize to the frontend
         serializer = self.get_serializer(spin)
-
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(
-        detail=False,
-        methods=['post'],
-        permission_classes=[IsAdminUser],
-        url_path='redeem'
-    )
-    def redeem_spin(self, request):
-        """
-        Admin-only endpoint to redeem a spin using a promo code.
-        Endpoint: POST /api/spins/redeem/
-        Body: { "promo_code": "FORT-ABC123XYZ" }
-        """
-        promo_code = request.data.get('promo_code')
-
-        if not promo_code:
-            return Response(
-                {"error": "Укажите промокод (promo_code is required)."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 2. Find the spin by promo code
-        spin = get_object_or_404(Spin, promo_code=promo_code)
-
-        # 3. Check if it's already redeemed
-        if spin.is_redeemed:
-            return Response(
-                {"error": "Этот промокод уже был использован."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 4. Mark as redeemed (This will trigger your model's save method logic:
-        # setting redeemed_at, adding monthly points, etc.)
-        spin.is_redeemed = True
-        spin.save()
-
-        serializer = self.get_serializer(spin)
-
-        return Response(
-            {
-                "success": f"Промокод {promo_code} успешно погашен!",
-                "spin": serializer.data
-            },
-            status=status.HTTP_200_OK
-        )
 
 
 class PromocodePrizeViewSet(viewsets.ModelViewSet):

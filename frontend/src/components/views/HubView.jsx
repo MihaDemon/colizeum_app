@@ -28,7 +28,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
           <LadderLogo size={30} />
           <div>
             <h4 style={{ fontSize: '13px', fontWeight: '900', color: '#FFF', margin: 0 }}>MONTHLY LADDER</h4>
-            <p style={{ fontSize: '10px', color: '#888', margin: '2px 0 0 0' }}>Ежемесячный рейтинг игроков и призовой фонд</p>
+            <p style={{ fontSize: '10px', color: '#888', margin: '2px 0 0 0' }}>Ежемесячный рейтинг игроков</p>
           </div>
         </div>
         <span style={{ color: '#FFE500', fontWeight: '900', fontSize: '16px' }}>➔</span>
@@ -39,7 +39,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
           <WheelLogo size={30} />
           <div>
             <h4 style={{ fontSize: '14px', fontWeight: '900', color: '#FFE500', margin: 0 }}>FORTUNE WHEEL</h4>
-            <p style={{ fontSize: '10px', color: '#CCC', margin: '2px 0 0 0' }}>Испытай удачу и выигрывай бонусы каждый день!</p>
+            <p style={{ fontSize: '10px', color: '#CCC', margin: '2px 0 0 0' }}>Испытай удачу и выигрывай бонусы!</p>
           </div>
         </div>
         <span style={{ backgroundColor: '#FFE500', color: '#0E0E10', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '12px' }}>➔</span>
@@ -95,7 +95,7 @@ export default function HubView({ profile, ladderRank, setActiveTab, canClaimBon
 
       <div style={styles.statsFooter}>
         <div style={{ flex: 1, textAlign: 'center' }}>
-          <p style={{ fontSize: '9px', color: '#888', margin: 0, textTransform: 'uppercase' }}>Стрик входа</p>
+          <p style={{ fontSize: '9px', color: '#888', margin: 0, textTransform: 'uppercase' }}>Стрик</p>
           <p style={{ fontSize: '13px', fontWeight: '900', color: '#FFE500', margin: '2px 0 0 0' }}>{profile?.daily_streak ?? 0} дней</p>
         </div>
         <div style={{ width: '1px', backgroundColor: '#2A2A32' }}></div>

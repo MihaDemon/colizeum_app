@@ -36,7 +36,7 @@ async def command_start_handler(message: types.Message) -> None:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🎮 Открыть Колесо Фортуны",
+                    text="Открыть Colizeum HUB",
                     web_app=WebAppInfo(url=WEBAPP_URL)
                 )
             ]
@@ -44,7 +44,7 @@ async def command_start_handler(message: types.Message) -> None:
     )
 
     await message.answer(
-        f"Привет, {user_name}! Добро пожаловать в Colizeum Perovo.\n"
+        f"Привет, {user_name}! Добро пожаловать в Colizeum Перово.\n"
         "Кликай по кнопке ниже, крути колесо и забирай призы!",
         reply_markup=keyboard
     )
