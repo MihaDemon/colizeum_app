@@ -28,12 +28,6 @@ export default function WinnerModal({ wonPrize, setWonPrize, isAdmin = false }) 
       <div style={styles.modalCard}>
         <h2 style={{ color: '#FFE500', marginBottom: '8px', fontSize: '16px' }}>ПОЗДРАВЛЯЕМ! 🎉</h2>
         <p style={{ fontSize: '14px', marginBottom: '12px' }}>Вы выиграли: <strong>{wonPrize.title}</strong></p>
-        <div style={styles.bonusAmountBox}>
-          <span style={{ fontSize: '24px', fontWeight: '900', color: '#FFE500' }}>
-            +{wonPrize.bonus ?? 0}
-          </span>
-          <span style={{ fontSize: '11px', fontWeight: '900', color: '#FFFFFF' }}> БОНУСОВ</span>
-        </div>
         <p style={{ fontSize: '10px', color: '#888', marginBottom: '16px' }}>Бонус уже начислен на ваш клубный аккаунт</p>
         <button onClick={() => setWonPrize(null)} style={styles.submitButton}>ОТЛИЧНО</button>
       </div>

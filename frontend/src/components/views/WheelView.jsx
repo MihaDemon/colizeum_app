@@ -28,6 +28,19 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       const baseBottomY = baseTopY + 28;
 
       ctx.save();
+      // Black rear support, matching the physical COLIZEUM wheel stand.
+      ctx.beginPath();
+      ctx.moveTo(cx - 17, cy - radius - 34);
+      ctx.lineTo(cx + 17, cy - radius - 34);
+      ctx.lineTo(cx + 13, cy - radius + 6);
+      ctx.lineTo(cx - 13, cy - radius + 6);
+      ctx.closePath();
+      ctx.fillStyle = "#050506";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#1F1F24";
+      ctx.stroke();
+
       ctx.beginPath();
       ctx.moveTo(cx - 30, cy);
       ctx.lineTo(cx + 30, cy);
@@ -52,15 +65,6 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       ctx.strokeStyle = "#2A2A32";
       ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(cx - 14, cy - radius - 28);
-      ctx.lineTo(cx + 14, cy - radius - 28);
-      ctx.lineTo(cx + 10, cy - radius - 8);
-      ctx.lineTo(cx - 10, cy - radius - 8);
-      ctx.closePath();
-      ctx.fillStyle = "#141418";
-      ctx.fill();
-      ctx.stroke();
       ctx.restore();
     };
 
@@ -91,6 +95,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       const cx = width / 2;
       const cy = height / 2 - 10;
       const radius = 118;
+      const sectorRadius = radius + 11;
 
       ctx.clearRect(0, 0, width, height);
       drawStand(cx, cy, radius);
@@ -108,20 +113,6 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       ctx.strokeStyle = "#FFE500";
       ctx.stroke();
 
-      // Outer Rim Text
-      const totalRimTexts = 12;
-      for (let r = 0; r < totalRimTexts; r++) {
-        ctx.save();
-        ctx.rotate(r * ((Math.PI * 2) / totalRimTexts));
-        ctx.fillStyle = "#FFE500";
-        ctx.fillRect(-8, -radius - 13, 16, 3);
-        ctx.fillStyle = "#FFE500";
-        ctx.font = "800 7px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("COLIZEUM", 0, -radius - 5);
-        ctx.restore();
-      }
-
       // Sectors
       for (let i = 0; i < numSectors; i++) {
         const sector = wheelPrizes[i];
@@ -130,7 +121,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
 
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.arc(0, 0, radius, startRad, endRad);
+        ctx.arc(0, 0, sectorRadius, startRad, endRad);
         ctx.closePath();
         ctx.fillStyle = sector.color;
         ctx.fill();
@@ -144,18 +135,13 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
         ctx.textBaseline = "middle";
         ctx.fillStyle = sector.textColor;
 
-        const textDist = radius * 0.65;
+        const textDist = sectorRadius * 0.65;
         const prizeLabel = sector.label || sector.name || '';
-        const prizeVal = sector.internal_value ?? '';
 
         if (prizeLabel) {
           ctx.font = "800 9px sans-serif";
-          ctx.fillText(prizeLabel.toUpperCase(), textDist, -8);
+          ctx.fillText(prizeLabel.toUpperCase(), textDist, 0);
         }
-
-        ctx.font = "900 15px sans-serif";
-        const valY = prizeLabel ? 7 : 0;
-        ctx.fillText(String(prizeVal).toUpperCase(), textDist, valY);
 
         ctx.restore();
       }
@@ -163,14 +149,14 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
       // Pegs
       for (let i = 0; i < numSectors; i++) {
         const pegRad = i * arcAngle;
-        const px = Math.cos(pegRad) * (radius + 1);
-        const py = Math.sin(pegRad) * (radius + 1);
+        const px = Math.cos(pegRad) * sectorRadius;
+        const py = Math.sin(pegRad) * sectorRadius;
 
         ctx.beginPath();
-        ctx.arc(px, py, 2.8, 0, Math.PI * 2);
+        ctx.arc(px, py, 4.5, 0, Math.PI * 2);
         ctx.fillStyle = "#FFE500";
         ctx.fill();
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.strokeStyle = "#000000";
         ctx.stroke();
       }
@@ -258,7 +244,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
           const bonusAmount = spinData.bonus_amount ?? prizeObj.internal_value;
           const fullLabel = prizeObj.label || 'БОНУС';
           
-          setWheelStatusText(`ВЫ ВЫИГРАЛИ: ${fullLabel.toUpperCase()} +${bonusAmount}! 🎉`);
+          setWheelStatusText(`ВЫ ВЫИГРАЛИ: ${fullLabel.toUpperCase()}`);
           setWonPrize({ title: fullLabel, bonus: bonusAmount });
           fetchProfile(token);
           fetchUserPosition(token);
@@ -268,7 +254,7 @@ export default function WheelView({ profile, wheelPrizes, setWonPrize, fetchProf
     } catch (err) {
       alert(err.message);
       setIsSpinning(false);
-      setWheelStatusText('SPIN THE WHEEL & WIN BONUSES!');
+      setWheelStatusText('КРУТИТЕ КОЛЕСО & ВЫИГРЫВАЙТЕ БОНУСЫ!');
     }
   };
 

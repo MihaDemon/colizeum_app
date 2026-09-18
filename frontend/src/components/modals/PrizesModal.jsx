@@ -34,12 +34,9 @@ export default function PrizesModal({ showPrizesModal, setShowPrizesModal, userS
                     ...styles.winHistoryItem
                   }}
                 >
-                  <div>
-                    <p style={{ fontWeight: 'bold', fontSize: '12px', color: '#FFF', margin: 0 }}>
-                      {item.prize || 'БОНУС'}
-                    </p>
-                    <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>{new Date(item.spun_at).toLocaleDateString()}</p>
-                  </div>
+                  <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>
+                    {new Date(item.spun_at).toLocaleDateString()}
+                  </p>
                   <span style={{ fontWeight: '900', color: '#FFE500', fontSize: '13px' }}>
                     +{item.bonus_amount ?? 0} БОНУСОВ
                   </span>
