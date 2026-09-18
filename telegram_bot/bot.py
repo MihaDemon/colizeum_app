@@ -18,6 +18,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 
 WEBAPP_URL = os.getenv('WEBAPP_URL')
+TELEGRAM_CHANNEL_URL = os.getenv('TELEGRAM_CHANNEL_URL', '').strip()
 
 # Initialize Bot and Dispatcher
 bot = Bot(token=TOKEN)
@@ -31,16 +32,27 @@ async def command_start_handler(message: types.Message) -> None:
     """
     user_name = message.from_user.first_name
 
-    # Create an Inline Keyboard with a WebApp button
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Открыть Colizeum HUB",
-                    web_app=WebAppInfo(url=WEBAPP_URL)
-                )
-            ]
+    # Keep the Mini App button first and add the channel button only when its
+    # URL is configured in the environment.
+    keyboard_buttons = [
+        [
+            InlineKeyboardButton(
+                text="Открыть Colizeum HUB",
+                web_app=WebAppInfo(url=WEBAPP_URL)
+            )
         ]
+    ]
+
+    if TELEGRAM_CHANNEL_URL:
+        keyboard_buttons.append([
+            InlineKeyboardButton(
+                text="Наш Telegram-канал",
+                url=TELEGRAM_CHANNEL_URL
+            )
+        ])
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=keyboard_buttons
     )
 
     await message.answer(
