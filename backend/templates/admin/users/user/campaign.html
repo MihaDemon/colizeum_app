@@ -1,0 +1,88 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+  <h1>Рассылка пользователям</h1>
+
+  <form method="get" class="module aligned">
+    <h2>Фильтры аудитории</h2>
+    {{ filter_form.non_field_errors }}
+    <fieldset class="module aligned">
+      <div class="form-row">
+        {{ filter_form.last_login_days.label_tag }}
+        {{ filter_form.last_login_days }}
+        <p class="help">Например, 30. Пользователи, которые не заходили дольше указанного срока.</p>
+      </div>
+      <div class="form-row">
+        {{ filter_form.min_total_spins.label_tag }}
+        {{ filter_form.min_total_spins }}
+      </div>
+      <div class="form-row">
+        {{ filter_form.min_daily_streak.label_tag }}
+        {{ filter_form.min_daily_streak }}
+      </div>
+      <div class="form-row">
+        {{ filter_form.active_only }}
+        {{ filter_form.active_only.label_tag }}
+      </div>
+    </fieldset>
+    <div class="submit-row">
+      <button type="submit" class="button">Показать пользователей</button>
+    </div>
+  </form>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <input type="hidden" name="last_login_days" value="{{ filter_form.last_login_days.value|default_if_none:'' }}">
+    <input type="hidden" name="min_total_spins" value="{{ filter_form.min_total_spins.value|default_if_none:'' }}">
+    <input type="hidden" name="min_daily_streak" value="{{ filter_form.min_daily_streak.value|default_if_none:'' }}">
+    <input type="hidden" name="active_only" value="{% if filter_form.active_only.value %}on{% endif %}">
+
+    <div class="module aligned">
+      <h2>Сообщение</h2>
+      {{ campaign_form.non_field_errors }}
+      {{ campaign_form.as_p }}
+      <div class="submit-row">
+        <button type="submit" class="default">Отправить выбранным пользователям</button>
+      </div>
+    </div>
+
+    <div class="module">
+      <h2>Найдено пользователей: {{ matched_count }}</h2>
+      <p>Показаны первые 500 пользователей. Для отправки всем используйте соответствующий флажок выше.</p>
+
+      <div class="results">
+      <table id="result_list">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Пользователь</th>
+            <th>Telegram ID</th>
+            <th>Последний вход</th>
+            <th>Всего спинов</th>
+            <th>Стрик</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td><input type="checkbox" name="user_ids" value="{{ user.pk }}"></td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.telegram_id }}</td>
+              <td>{{ user.last_login|default:'Никогда' }}</td>
+              <td>{{ user.total_spins }}</td>
+              <td>{{ user.daily_streak }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6">Пользователи не найдены.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </form>
+  </div>
+{% endblock %}

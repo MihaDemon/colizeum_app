@@ -6,6 +6,7 @@ from datetime import timedelta
 import requests
 import requests_pkcs12
 
+from django.conf import settings
 from django.db import transaction
 from django.core.cache import cache
 from django.contrib.auth import get_user_model
@@ -25,6 +26,33 @@ from users.constraints import (
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+
+def send_telegram_message(telegram_id: str, text: str) -> tuple[bool, str]:
+    """Send one admin campaign message through the Telegram Bot API."""
+    token = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
+    if not token:
+        return False, 'TELEGRAM_BOT_TOKEN is not configured.'
+
+    try:
+        response = requests.post(
+            f'https://api.telegram.org/bot{token}/sendMessage',
+            json={
+                'chat_id': str(telegram_id),
+                'text': text,
+            },
+            timeout=15,
+        )
+        response_data = response.json()
+    except (requests.RequestException, ValueError) as error:
+        return False, str(error)
+
+    if response.status_code == 200 and response_data.get('ok'):
+        return True, ''
+
+    return False, response_data.get(
+        'description', 'Telegram rejected the message.'
+    )
 
 
 def _transaction_phone(value: str) -> str | None:
@@ -200,7 +228,6 @@ def sync_club_transactions() -> int:
         'Club transaction sync completed: %s new transactions',
         processed
     )
-
     return processed
 
 
