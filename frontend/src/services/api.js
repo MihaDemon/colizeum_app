@@ -1,6 +1,17 @@
 import { API_BASE_URL } from '../constants/api';
 import { getAuthToken, getInitData } from '../utils/helpers';
 
+export const updateNicknameApi = async (username) => {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${getAuthToken()}` },
+    body: JSON.stringify({ username })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.username?.[0] || data.detail || 'Не удалось изменить никнейм.');
+  return data;
+};
+
 export const fetchProfileApi = async (token) => {
   const res = await fetch(`${API_BASE_URL}/api/users/me/`, {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Token ${token}` }

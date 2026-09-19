@@ -51,6 +51,19 @@ class UserSerializer(serializers.ModelSerializer):
         ]
 
 
+class NicknameSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        max_length=30, allow_blank=False, trim_whitespace=True
+    )
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exclude(
+            pk=self.context['request'].user.pk
+        ).exists():
+            raise serializers.ValidationError('Этот никнейм уже занят.')
+        return value
+
+
 class LeaderboardSerializer(serializers.ModelSerializer):
     """Only the public fields needed to render the monthly ladder."""
 

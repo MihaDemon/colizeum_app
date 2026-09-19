@@ -1,23 +1,101 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { updateNicknameApi } from '../../services/api';
 import { styles } from '../../styles/styles';
 import WheelLogo from '../WheelLogo';
 import DailyBonusLogo from '../DailyBonusLogo';
 import LadderLogo from '../LadderLogo';
 import HubLogo from '../HubLogo';
 
-export default function HubView({ profile, ladderRank, setActiveTab, canClaimBonus }) {
+export default function HubView({ profile, ladderRank, setActiveTab, canClaimBonus, onProfileChange }) {
+  const [editing, setEditing] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const nicknameInput = useRef(null);
+  const saveInProgress = useRef(false);
+
+  useEffect(() => {
+    if (!editing) return;
+    const input = nicknameInput.current;
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+    const blurOutside = (event) => {
+      if (event.target !== input) input?.blur();
+    };
+    // Some mobile keyboards close without blurring the focused input.
+    const viewport = window.visualViewport;
+    let smallestHeight = viewport?.height;
+    const initialWidth = viewport?.width;
+    const keyboardResize = () => {
+      if (Math.abs(viewport.width - initialWidth) > 40) return;
+      smallestHeight = Math.min(smallestHeight, viewport.height);
+      if (viewport.height - smallestHeight > 120) input?.blur();
+    };
+    document.addEventListener('pointerdown', blurOutside);
+    viewport?.addEventListener('resize', keyboardResize);
+    return () => {
+      document.removeEventListener('pointerdown', blurOutside);
+      viewport?.removeEventListener('resize', keyboardResize);
+    };
+  }, [editing]);
+
+  const saveNickname = async () => {
+    if (saveInProgress.current) return;
+    const value = nickname.trim();
+    if (!value) { setError('Введите никнейм.'); return; }
+    if (value === profile?.username) { setEditing(false); setError(''); return; }
+    saveInProgress.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await updateNicknameApi(value);
+      onProfileChange(updated);
+      setEditing(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      saveInProgress.current = false;
+      setSaving(false);
+    }
+  };
   return (
     <>
       <div style={styles.userCard}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
           <div style={styles.avatarBox}><HubLogo size={30} /></div>
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#FFF', margin: 0 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            {editing ? (
+              <form style={{ margin: 0 }} onSubmit={(event) => { event.preventDefault(); nicknameInput.current?.blur(); }}>
+                <input ref={nicknameInput} aria-label="Никнейм" maxLength={30}
+                  value={nickname} readOnly={saving} autoComplete="nickname" enterKeyHint="done"
+                  onChange={(event) => { setNickname(event.target.value); setError(''); }}
+                  onBlur={saveNickname}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                      event.preventDefault(); event.currentTarget.blur();
+                    }
+                  }}
+                  aria-invalid={Boolean(error)} aria-describedby={error ? 'nickname-error' : undefined}
+                  style={{ width: '100%', boxSizing: 'border-box', minWidth: 0,
+                    fontFamily: 'inherit', fontSize: '16px', lineHeight: '24px',
+                    fontWeight: '900', color: '#FFF', WebkitTextFillColor: '#FFF',
+                    background: 'rgba(0, 0, 0, 0.12)', border: 0, outline: 'none',
+                    boxShadow: 'none', appearance: 'none', WebkitAppearance: 'none',
+                    caretColor: '#FFE500', borderRadius: '8px', padding: '8px 6px' }} />
+              </form>
+            ) : (
+            <button type="button" aria-label="Изменить никнейм" onClick={() => {
+              setNickname(profile?.username || ''); setError(''); setEditing(true);
+            }} style={{ fontFamily: 'inherit', fontSize: '16px', lineHeight: '24px', fontWeight: '900', color: '#FFF', margin: 0, background: 'none', border: 0, padding: '8px 6px', textAlign: 'left', cursor: 'pointer', overflowWrap: 'anywhere' }}>
               {profile?.username || profile?.app_username || 'Игрок'}
-            </h3>
+              <span aria-hidden="true" style={{ color: '#FFE500', marginLeft: 6 }}>✎</span>
+            </button>
+            )}
+            {saving && <span role="status" style={{ fontSize: '10px', color: '#AAA' }}>Сохранение…</span>}
+            {error && <div id="nickname-error" role="alert" style={{ fontSize: '11px', color: '#FF8080' }}>{error}</div>}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
           <span style={{ fontSize: '9px', color: '#FFE500', fontWeight: 'bold', display: 'block', letterSpacing: '1px' }}>LADDER RANK</span>
           <span style={{ fontSize: '16px', fontWeight: '900', color: '#FFF' }}>#{ladderRank}</span>
         </div>

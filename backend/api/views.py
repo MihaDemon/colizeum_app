@@ -9,7 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.authtoken.models import Token
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.utils import timezone
@@ -26,6 +26,7 @@ from wheel.models import (
 )
 from .serializers import (
     UserSerializer,
+    NicknameSerializer,
     ClubUserSerializer,
     ClubTransactionSerializer,
     WheelPrizeSerializer,
@@ -160,9 +161,23 @@ class UserViewSet(viewsets.GenericViewSet):
     def get_queryset(self):
         return User.objects.filter(pk=self.request.user.pk)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get', 'patch'])
     def me(self, request):
         """Endpoint: GET /api/users/me/"""
+        if request.method == 'PATCH':
+            nickname = NicknameSerializer(
+                data=request.data, context={'request': request}
+            )
+            nickname.is_valid(raise_exception=True)
+            try:
+                with transaction.atomic():
+                    request.user.username = nickname.validated_data['username']
+                    request.user.save(update_fields=['username'])
+            except IntegrityError:
+                return Response(
+                    {'username': ['Этот никнейм уже занят.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                    )
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 

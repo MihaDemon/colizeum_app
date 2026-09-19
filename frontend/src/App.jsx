@@ -241,6 +241,7 @@ export default function App() {
 
         {activeTab === 'hub' && (
           <HubView 
+            onProfileChange={setProfile}
             profile={profile} 
             ladderRank={ladderRank} 
             setActiveTab={setActiveTab} 
