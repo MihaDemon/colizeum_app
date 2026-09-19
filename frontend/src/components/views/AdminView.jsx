@@ -1,54 +1,38 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { styles } from '../../styles/styles';
 import { API_BASE_URL } from '../../constants/api';
-import { adminTransactionApi, adminRedeemApi } from '../../services/api';
+import { adminRedeemApi, fetchAdminTransactionsApi } from '../../services/api';
 import WinnerModal from '../modals/WinnerModal';
 
 export default function AdminView({ profile }) {
-  const [transPhone, setTransPhone] = useState('');
-  const [transAmount, setTransAmount] = useState('');
-  const [transCheckNumber, setTransCheckNumber] = useState('');
-  const [transLoading, setTransLoading] = useState(false);
-  const [transFeedback, setTransFeedback] = useState(null);
-
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoFeedback, setPromoFeedback] = useState(null);
 
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [transactionsError, setTransactionsError] = useState(null);
+
   const [wonPrize, setWonPrize] = useState(null);
 
-  const handleAdminTransactionSubmit = async (e) => {
-    e.preventDefault();
-    const cleanPhone = transPhone.trim();
-
-    if (!/^\d{10}$/.test(cleanPhone)) {
-      setTransFeedback({ type: 'error', message: 'Введите ровно 10 цифр номера телефона (без +7).' });
-      return;
-    }
-
-    if (!transAmount || !transCheckNumber.trim()) {
-      setTransFeedback({ type: 'error', message: 'Заполните сумму и номер чека.' });
-      return;
-    }
-
-    setTransLoading(true);
-    setTransFeedback(null);
-
+  const loadTransactions = useCallback(async () => {
+    setTransactionsLoading(true);
+    setTransactionsError(null);
     try {
-      await adminTransactionApi(cleanPhone, transAmount, transCheckNumber);
-      setTransFeedback({
-        type: 'success',
-        message: `Чек ${transCheckNumber.trim()} на ${transAmount} RUB успешно проведен для +7${cleanPhone}!`
-      });
-      setTransPhone('');
-      setTransAmount('');
-      setTransCheckNumber('');
+      const data = await fetchAdminTransactionsApi();
+      setTransactions(Array.isArray(data) ? data : []);
     } catch (err) {
-      setTransFeedback({ type: 'error', message: err.message });
+      setTransactionsError(err.message);
     } finally {
-      setTransLoading(false);
+      setTransactionsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadTransactions();
+    const refreshTimer = setInterval(loadTransactions, 15 * 60 * 1000);
+    return () => clearInterval(refreshTimer);
+  }, [loadTransactions]);
 
   const handleAdminRedeemSubmit = async (e) => {
     e.preventDefault();
@@ -142,70 +126,58 @@ export default function AdminView({ profile }) {
           </form>
         </section>
 
-        {/* CLUB TRANSACTION FORM */}
+        {/* AUTOMATIC CLUB TRANSACTIONS */}
         <section style={styles.adminCard}>
-          <div style={styles.adminCardHeader}>
-            <span style={{ fontSize: '22px' }}>💳</span>
-            <div>
-              <h2 style={styles.adminCardTitle}>КЛУБНАЯ ТРАНЗАКЦИЯ</h2>
-              <p style={styles.adminCardSub}>Проведение чеков и пополнений администратором</p>
+          <div style={{ ...styles.adminCardHeader, justifyContent: 'space-between' }}>
+            <div style={styles.adminCardHeader}>
+              <span style={{ fontSize: '22px' }}>💳</span>
+              <div>
+                <h2 style={styles.adminCardTitle}>АВТОМАТИЧЕСКИЕ ТРАНЗАКЦИИ</h2>
+                <p style={styles.adminCardSub}>Синхронизация с клубом каждые 15 минут</p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={loadTransactions}
+              disabled={transactionsLoading}
+              style={{ ...styles.submitButton, width: 'auto', padding: '8px 10px', fontSize: '9px' }}
+            >
+              {transactionsLoading ? '...' : 'ОБНОВИТЬ'}
+            </button>
           </div>
 
-          <form onSubmit={handleAdminTransactionSubmit} style={styles.adminForm}>
-            <div style={styles.inputGroup}>
-              <label style={styles.inputLabel}>НОМЕР ТЕЛЕФОНА ИГРОКА (10 ЦИФР)</label>
-              <div style={styles.phoneBox}>
-                <span style={styles.phonePrefix}>+7</span>
-                <input
-                  type="tel"
-                  required
-                  maxLength="10"
-                  placeholder="9265714536"
-                  value={transPhone}
-                  onChange={(e) => setTransPhone(e.target.value)}
-                  style={styles.phoneField}
-                />
+          {transactionsError && (
+            <div style={styles.errorBox}>{transactionsError}</div>
+          )}
+
+          {!transactionsLoading && !transactionsError && transactions.length === 0 && (
+            <p style={{ color: '#888', fontSize: '11px', margin: 0 }}>
+              Обработанных транзакций пока нет.
+            </p>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {transactions.map((item) => (
+              <div key={item.check_number} style={styles.winHistoryItem}>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ color: '#FFF', fontSize: '11px', fontWeight: '800' }}>
+                    ЧЕК №{item.check_number}
+                  </div>
+                  <div style={{ color: '#888', fontSize: '9px', marginTop: '3px' }}>
+                    {item.created_at ? new Date(item.created_at).toLocaleString() : '—'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#FFE500', fontSize: '12px', fontWeight: '900' }}>
+                    {item.amount_rub} RUB
+                  </div>
+                  <div style={{ color: '#8BC34A', fontSize: '9px', fontWeight: '800', marginTop: '3px' }}>
+                    +{item.spins_awarded} СПИНОВ
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <div style={styles.inputGroup}>
-              <label style={styles.inputLabel}>СУММА (RUB, ТОЛЬКО ЦЕЛЫЕ)</label>
-              <input
-                type="number"
-                step="1"
-                pattern="\d*"
-                required
-                placeholder="1500"
-                value={transAmount}
-                onChange={(e) => setTransAmount(e.target.value.replace(/\D/g, ''))}
-                style={styles.textInput}
-              />
-            </div>
-
-            <div style={styles.inputGroup}>
-              <label style={styles.inputLabel}>НОМЕР ЧЕКА / КАССЫ</label>
-              <input
-                type="text"
-                required
-                placeholder="FD-987654321"
-                value={transCheckNumber}
-                onChange={(e) => setTransCheckNumber(e.target.value)}
-                style={{ ...styles.textInput, textTransform: 'uppercase' }}
-              />
-            </div>
-
-            {transFeedback && (
-              <div style={transFeedback.type === 'success' ? styles.successBox : styles.errorBox}>
-                {transFeedback.type === 'success' ? '✅ ' : '⚠️ '}
-                {transFeedback.message}
-              </div>
-            )}
-
-            <button type="submit" disabled={transLoading} style={styles.submitButton}>
-              {transLoading ? 'ПРОВОДИМ...' : 'ПРОВЕСТИ ТРАНЗАКЦИЮ ⚡'}
-            </button>
-          </form>
+            ))}
+          </div>
         </section>
 
       </div>

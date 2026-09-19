@@ -89,22 +89,13 @@ export const spinWheelApi = async (token) => {
   return spinData;
 };
 
-export const adminTransactionApi = async (cleanPhone, transAmount, transCheckNumber) => {
+export const fetchAdminTransactionsApi = async () => {
   const res = await fetch(`${API_BASE_URL}/api/transactions/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Token ${getAuthToken()}`
-    },
-    body: JSON.stringify({
-      user_phone: cleanPhone,
-      amount_rub: parseInt(transAmount, 10),
-      check_number: transCheckNumber.trim()
-    })
+    headers: { 'Authorization': `Token ${getAuthToken()}` }
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.detail || 'Ошибка проведения транзакции.');
-  return data;
+  if (!res.ok) throw new Error(data.error || data.detail || 'Не удалось загрузить транзакции.');
+  return data.results ?? data;
 };
 
 export const adminRedeemApi = async (cleanedCode, endpoint) => {
