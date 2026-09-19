@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+from django.utils import timezone
 
 from users.models import ClubUser, ClubTransaction
 from users.services import edit_guest_bonus_balance
@@ -76,6 +77,8 @@ class AuthViewSet(viewsets.ViewSet):
         # 2. LOGIN ATTEMPT: Check if user already exists
         user = User.objects.filter(telegram_id=telegram_id).first()
         if user:
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
             token, _ = Token.objects.get_or_create(user=user)
             return Response({
                 "token": token.key,
@@ -134,7 +137,8 @@ class AuthViewSet(viewsets.ViewSet):
             username=username,
             telegram_id=telegram_id,
             # Adjust based on how User relates to ClubUser.
-            mobile_phone=club_user
+            mobile_phone=club_user,
+            last_login=timezone.now()
         )
         user.set_unusable_password()
         user.save()
@@ -266,21 +270,44 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
     )
     def redeem_bonus(self, request):
         """
-        Endpoint to redeem a daily bonus using its promo code.
+        Endpoint for an admin to redeem a daily bonus or PROMO- prize code.
         Endpoint: POST /api/daily-bonuses/redeem/
-        Body: { "promo_code": "DAILY-ABC123XYZ" }
+        Body: { "promo_code": "DAILY-ABC123XYZ" or "PROMO-ABC123XYZ" }
         """
-        promo_code = request.data.get('promo_code')
+        promo_code = str(request.data.get('promo_code') or '').strip().upper()
         if not promo_code:
             return Response(
                 {"error": "Укажите промокод (promo_code is required)."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 1. Find the bonus
+        if promo_code.startswith('PROMO-'):
+            promo = get_object_or_404(
+                PromocodePrize,
+                promo_code=promo_code
+            )
+
+            if promo.is_redeemed:
+                return Response(
+                    {"error": "Этот промокод уже погашен."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            promo.is_redeemed = True
+            promo.save()
+
+            serializer = PromocodePrizeSerializer(promo)
+            return Response(
+                {
+                    "success": f"Промокод {promo_code} успешно погашен!",
+                    "promo": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        # Daily bonuses keep their waiting and expiration rules.
         bonus = get_object_or_404(DailyBonus, promo_code=promo_code)
 
-        # 3. Run model validations (checks expiration and waiting windows)
         bonus.check_expiration()
 
         if not bonus.can_redeem():
@@ -294,8 +321,7 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # 4. Mark as redeemed
-        # (triggers points addition and daily streak update)
+        # Mark as redeemed; this triggers points addition and streak update.
         bonus.is_redeemed = True
         bonus.save()
 

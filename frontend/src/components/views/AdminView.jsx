@@ -56,6 +56,8 @@ export default function AdminView({ profile }) {
         data.bonus?.prize || 
         data.bonus?.prize_name || 
         data.bonus?.prize?.name || 
+        data.promo?.label ||
+        data.promo?.internal_value ||
         data.prize_label || 
         data.prize || 
         'ПРИЗ ВЫДАН';
@@ -96,7 +98,7 @@ export default function AdminView({ profile }) {
             <span style={{ fontSize: '22px' }}>🎟️</span>
             <div>
               <h2 style={styles.adminCardTitle}>ПОГАШЕНИЕ ПРОМОКОДА</h2>
-              <p style={styles.adminCardSub}>Активация ежедневного бонуса</p>
+              <p style={styles.adminCardSub}>Активация ежедневных бонусов и PROMO-кодов</p>
             </div>
           </div>
 
@@ -106,7 +108,7 @@ export default function AdminView({ profile }) {
               <input
                 type="text"
                 required
-                placeholder="DAILY-ABC123XYZ"
+                placeholder="DAILY-... или PROMO-..."
                 value={promoCodeInput}
                 onChange={(e) => setPromoCodeInput(e.target.value)}
                 style={{ ...styles.textInput, textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 'bold', color: '#FFE500', fontSize: '14px' }}
@@ -121,7 +123,7 @@ export default function AdminView({ profile }) {
             )}
 
             <button type="submit" disabled={promoLoading} style={styles.submitButton}>
-              {promoLoading ? 'ПРОВЕРКА...' : 'ПОГАСИТЬ DAILY БОНУС 📜'}
+              {promoLoading ? 'ПРОВЕРКА...' : 'ПОГАСИТЬ БОНУС 📜'}
             </button>
           </form>
         </section>
