@@ -65,46 +65,13 @@ class LeaderboardSerializer(serializers.ModelSerializer):
 
 
 class ClubTransactionSerializer(serializers.ModelSerializer):
-    user_phone = serializers.CharField(write_only=True)
-
     class Meta:
         model = ClubTransaction
         fields = [
             'id', 'admin', 'user', 'amount_rub',
-            'check_number', 'spins_awarded', 'created_at',
-            'user_phone'
+            'check_number', 'spins_awarded', 'created_at'
         ]
-        # spins_awarded is handled by the model's save() method
-        read_only_fields = [
-            'id',
-            'admin',
-            'user',
-            'spins_awarded',
-            'created_at'
-        ]
-
-    def validate_user_phone(self, value):
-        """Ensure a user with this phone number exists."""
-        try:
-            user = User.objects.get(mobile_phone=value)
-
-        except User.DoesNotExist:
-            raise serializers.ValidationError(
-                "Пользователь с таким номером телефона не найден."
-            )
-
-        return user
-
-    def create(self, validated_data):
-        # Extract the resolved User object
-        target_user = validated_data.pop('user_phone')
-
-        # Create the transaction
-        transaction = ClubTransaction.objects.create(
-            user=target_user,
-            **validated_data
-        )
-        return transaction
+        read_only_fields = fields
 
 
 class WheelPrizeSerializer(serializers.ModelSerializer):

@@ -1,9 +1,11 @@
+from datetime import timedelta
+
 from django.utils import timezone
 
 
 def configure_scheduler(scheduler):
     """Register all recurring users-app jobs on an APScheduler instance."""
-    from .services import sync_guests_database
+    from .services import sync_club_transactions, sync_guests_database
     from .tasks import check_and_reset_monthly_ladder
 
     scheduler.add_job(
@@ -26,6 +28,18 @@ def configure_scheduler(scheduler):
         coalesce=True,
         next_run_time=timezone.now(),
     )
+    scheduler.add_job(
+        sync_club_transactions,
+        'interval',
+        minutes=15,
+        id='club_transactions_sync_job',
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        # Run after the guest sync so newly imported club users can receive
+        # spins in the same scheduler cycle.
+        next_run_time=timezone.now() + timedelta(minutes=1),
+    )
 
 
 def start_background_scheduler():
@@ -39,5 +53,6 @@ def start_background_scheduler():
     scheduler.start()
     print(
         "Background scheduler started: guest sync every 15 minutes; "
+        "club transaction sync every 15 minutes; "
         "monthly ladder check every minute."
     )

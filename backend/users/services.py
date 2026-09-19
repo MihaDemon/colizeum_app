@@ -1,21 +1,207 @@
 import csv
 import io
 import logging
+import re
+from datetime import timedelta
 import requests
+import requests_pkcs12
 
 from django.db import transaction
 from django.core.cache import cache
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 
-from users.models import ClubUser
+from users.models import ClubUser, ClubTransaction
 from users.utils import get_cookie_token_string, get_guest_id
 
 from users.constraints import (
     BASE_URL,
+    CERT_PATH,
+    CERT_PASSWORD,
     COOKIE_CACHE_KEY,
+    ONE_SPIN_MIN_TOP_UP,
 )
 
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
+
+
+def _transaction_phone(value: str) -> str | None:
+    """Extract and normalize the phone number embedded in an operation name."""
+    if not value:
+        return None
+
+    # The HTML contains a short guest ID in showGuestAnketa(...), followed by
+    # the phone number in the visible operation text. Inspect every group so
+    # the guest ID cannot be mistaken for the phone number.
+    for value_group in re.findall(r'\(([^()]*)\)', value):
+        digits = ''.join(char for char in value_group if char.isdigit())
+        if len(digits) >= 10:
+            return digits[-10:]
+
+    return None
+
+
+def _external_transaction_key(operation: dict) -> str | None:
+    """Return the fiscal number used to identify one operation."""
+    fiscal_number = str(operation.get('fiscal_number') or '').strip()
+
+    if not fiscal_number:
+        return None
+
+    return fiscal_number
+
+
+def _operations_log_payload(start_date: str, end_date: str) -> dict:
+    columns = [
+        'date',
+        'time',
+        'club_name',
+        'type',
+        'name',
+        'source',
+        'form',
+        'sum',
+        'date_fiscal',
+        'fn_number',
+        'fiscal_number',
+    ]
+    payload = {
+        'draw': '1',
+        'start': '0',
+        'length': '1000',
+        'order[0][column]': '0',
+        'order[0][dir]': 'asc',
+        'order[0][name]': '',
+        'search[value]': '',
+        'search[regex]': 'false',
+        'date_from': start_date,
+        'date_to': end_date,
+        'club_id': '',
+        'operation_type': 'plus',
+        'operation_source': '',
+        'operation_form': '',
+        'sum_from': str(ONE_SPIN_MIN_TOP_UP),
+        'sum_to': '',
+    }
+
+    for index, column in enumerate(columns):
+        payload.update({
+            f'columns[{index}][data]': column,
+            f'columns[{index}][name]': '',
+            f'columns[{index}][searchable]': 'true',
+            f'columns[{index}][orderable]': 'true',
+            f'columns[{index}][search][value]': '',
+            f'columns[{index}][search][regex]': 'false',
+        })
+
+    return payload
+
+
+def get_club_transactions() -> list[dict]:
+    """Fetch positive operations from yesterday and today."""
+    today = timezone.localdate()
+    # Include the complete previous day so transactions created shortly
+    # before midnight are still processed by the next scheduler run.
+    start_date = today - timedelta(days=1)
+    url = f'{BASE_URL}/all_operations_log/server_processing.php'
+    cookie_string, _ = get_cookie_token_string()
+
+    response = requests_pkcs12.post(
+        url,
+        headers={
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Cookie': cookie_string,
+        },
+        data=_operations_log_payload(
+            f'{start_date.isoformat()} 00:00',
+            f'{today.isoformat()} 23:59',
+        ),
+        pkcs12_filename=CERT_PATH,
+        pkcs12_password=CERT_PASSWORD,
+        allow_redirects=False,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    data = response.json()
+    operations = data.get('data', [])
+    return operations if isinstance(operations, list) else []
+
+
+def _process_club_transaction(operation: dict) -> bool:
+    """Persist one new operation and award its spins exactly once."""
+    try:
+        amount = int(float(operation.get('sum', 0)))
+    except (TypeError, ValueError):
+        return False
+
+    if amount <= ONE_SPIN_MIN_TOP_UP:
+        return False
+
+    check_number = _external_transaction_key(operation)
+    phone_number = _transaction_phone(operation.get('name', ''))
+    if not check_number or not phone_number:
+        logger.warning(
+            'Skipping club operation with incomplete data: %s',
+            check_number or '<unknown>',
+        )
+        return False
+
+    with transaction.atomic():
+        if ClubTransaction.objects.filter(check_number=check_number).exists():
+            return False
+
+        user = User.objects.select_for_update().filter(
+            mobile_phone__mobile_phone=phone_number
+        ).first()
+        if not user:
+            logger.warning(
+                'SPINS NOT AWARDED: fiscal_number=%s, phone=%s, amount=%s. '
+                'User is not registered in the app; the operation will be '
+                'retried on the next sync.',
+                check_number,
+                phone_number,
+                amount,
+            )
+            return False
+
+        ClubTransaction.objects.create(
+            admin=None,
+            user=user,
+            amount_rub=amount,
+            check_number=check_number,
+        )
+        return True
+
+
+def sync_club_transactions() -> int:
+    """Fetch and process new qualifying club operations."""
+    try:
+        operations = get_club_transactions()
+    except Exception:
+        logger.exception('Failed to fetch club transactions')
+        return 0
+
+    processed = 0
+    for operation in operations:
+        try:
+            if _process_club_transaction(operation):
+                processed += 1
+        except Exception:
+            logger.exception(
+                'Failed to process club operation %s',
+                _external_transaction_key(operation),
+            )
+
+    logger.info(
+        'Club transaction sync completed: %s new transactions',
+        processed
+    )
+
+    return processed
 
 
 def parse_fio(fio_raw: str) -> tuple[str, str, str]:

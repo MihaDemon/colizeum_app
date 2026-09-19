@@ -1,8 +1,12 @@
+import os
 from datetime import timedelta
+from dotenv import load_dotenv
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
+
+load_dotenv()
 
 
 class User(AbstractUser):
@@ -187,10 +191,10 @@ class ClubTransaction(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
 
-        X_VALUE = 500
+        x_value = int(os.getenv('ONE_SPIN_MIN_TOP_UP', 1000))
 
         if is_new:
-            self.spins_awarded = self.amount_rub // X_VALUE
+            self.spins_awarded = self.amount_rub // x_value
 
         super().save(*args, **kwargs)
 

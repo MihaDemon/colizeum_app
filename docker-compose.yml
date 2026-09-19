@@ -57,6 +57,11 @@ services:
       dockerfile: Dockerfile
     container_name: colizeum_scheduler
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "1"
     command: ["python", "manage.py", "run_scheduler"]
     env_file:
       - .env

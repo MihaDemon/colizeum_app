@@ -172,10 +172,10 @@ class ClubUserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
 
 
-class ClubTransactionViewSet(viewsets.ModelViewSet):
+class ClubTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    Handles receipt transactions. Admins create them; regular users can
-    view their own.
+    Exposes automatically processed receipt transactions. Transactions are
+    created only by the scheduled club-log synchronization.
     """
     queryset = ClubTransaction.objects.all()
     serializer_class = ClubTransactionSerializer
@@ -186,10 +186,6 @@ class ClubTransactionViewSet(viewsets.ModelViewSet):
         if self.request.user.is_staff:
             return self.queryset
         return self.queryset.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        # Automatically set the admin who is processing the check
-        serializer.save(admin=self.request.user)
 
 
 class WheelPrizeViewSet(viewsets.ReadOnlyModelViewSet):

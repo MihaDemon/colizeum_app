@@ -11,3 +11,4 @@ BASE_URL = os.getenv("colizeum_url", "").rstrip("/")
 COOKIE_CACHE_KEY = "cls_cookie"
 CACHE_TTL = 3600
 TOKEN_CACHE_KEY = "cls_token"
+ONE_SPIN_MIN_TOP_UP = int(os.getenv("ONE_SPIN_MIN_TOP_UP", 1000))
