@@ -19,6 +19,7 @@ TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 WEBAPP_URL = os.getenv('WEBAPP_URL')
 TELEGRAM_CHANNEL_URL = os.getenv('TELEGRAM_CHANNEL_URL', '').strip()
+CLUB_NAME = os.getenv('CLUB_NAME', '').strip() or 'Клуб'
 
 # Initialize Bot and Dispatcher
 bot = Bot(token=TOKEN)
@@ -56,7 +57,7 @@ async def command_start_handler(message: types.Message) -> None:
     )
 
     await message.answer(
-        f"Привет, {user_name}! Добро пожаловать в Colizeum Перово.\n"
+        f"Привет, {user_name}! Добро пожаловать в Colizeum {CLUB_NAME}.\n"
         "Кликай по кнопке ниже, крути колесо и забирай призы!",
         reply_markup=keyboard
     )

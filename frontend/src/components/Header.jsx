@@ -25,7 +25,7 @@ export default function Header({ profile, setActiveTab, refreshAppData, setShowP
         <div style={styles.yellowBar}></div>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <h1 style={styles.headerBrand}>COLIZEUM</h1>
-          <p style={styles.headerSub}>Перово ARENA HUB</p>
+          <p style={styles.headerSub}>{import.meta.env.VITE_CLUB_NAME} ARENA HUB</p>
         </div>
       </div>
 
