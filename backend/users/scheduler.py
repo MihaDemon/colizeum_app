@@ -6,7 +6,21 @@ from django.utils import timezone
 def configure_scheduler(scheduler):
     """Register all recurring users-app jobs on an APScheduler instance."""
     from .services import sync_club_transactions, sync_guests_database
-    from .tasks import check_and_reset_monthly_ladder
+    from .tasks import (
+        check_and_reset_monthly_ladder,
+        reset_expired_daily_streaks
+    )
+
+    scheduler.add_job(
+        reset_expired_daily_streaks,
+        'interval',
+        minutes=1,
+        id='daily_streak_reset_job',
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        next_run_time=timezone.now(),
+    )
 
     scheduler.add_job(
         check_and_reset_monthly_ladder,
@@ -54,5 +68,5 @@ def start_background_scheduler():
     print(
         "Background scheduler started: guest sync every 15 minutes; "
         "club transaction sync every 15 minutes; "
-        "monthly ladder check every minute."
+        "monthly ladder check every minute; daily streak check every minute."
     )

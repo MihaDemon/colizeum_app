@@ -122,6 +122,12 @@ class DailyBonus(models.Model):
         ordering = ('-got_at', )
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        previous_claim_at = None
+        if is_new:
+            previous_claim_at = (self.user.bonuses.order_by('-got_at')
+                                 .values_list('got_at', flat=True).first())
+
         if not self.promo_code:
             unique_id = get_random_string(10).upper()
 
@@ -155,11 +161,12 @@ class DailyBonus(models.Model):
 
         super().save(*args, **kwargs)
 
+        if is_new:
+            self.user.update_daily_streak(previous_claim_at)
+
         if just_redeemed:
             if self.prize:
                 self.user.add_monthly_points(self.prize.points)
-
-            self.user.update_daily_streak()
 
     def can_redeem(self) -> bool:
         if self.is_redeemed or self.is_expired:

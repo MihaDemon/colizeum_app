@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import F
 from django.utils import timezone
 
 load_dotenv()
@@ -72,10 +73,31 @@ class User(AbstractUser):
             'total_spins'
         ])
 
-    def update_daily_streak(self):
-        self.daily_streak += 1
+    def update_daily_streak(self, previous_claim_at):
+        """Count a new claim, continuing only claims less than 48 hours
+        apart."""
+        if (
+            previous_claim_at
+            and timezone.now() < previous_claim_at + timedelta(days=2)
+        ):
+            User.objects.filter(pk=self.pk).update(
+                daily_streak=F('daily_streak') + 1
+            )
+        else:
+            User.objects.filter(pk=self.pk).update(daily_streak=1)
+        self.refresh_from_db(fields=['daily_streak'])
 
-        self.save(update_fields=['daily_streak'])
+    def current_daily_streak(self):
+        """Clear an abandoned streak when it is read, even between scheduler
+        runs."""
+        if self.daily_streak:
+            cutoff = timezone.now() - timedelta(days=2)
+            expired = (User.objects.filter(pk=self.pk, daily_streak__gt=0)
+                       .exclude(bonuses__got_at__gt=cutoff)
+                       .update(daily_streak=0))
+            if expired:
+                self.daily_streak = 0
+        return self.daily_streak
 
     def reset_daily_streak(self):
         self.daily_streak = 0

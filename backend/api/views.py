@@ -227,7 +227,12 @@ class DailyBonusPrizeViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
 
 
-class DailyBonusViewSet(viewsets.ModelViewSet):
+class DailyBonusViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
     """
     Manages a user's daily bonuses.
     """
@@ -244,34 +249,32 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
         12:00 PM next-day rule.
         Endpoint: POST /api/daily-bonuses/
         """
-        user = request.user
+        # Lock the user so simultaneous requests cannot both claim a bonus.
+        with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=request.user.pk)
+            if not user.can_claim_daily_bonus():
+                return Response(
+                    {"error": "Вы еще не можете получить новый бонус."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        # 1. Eligibility Check: Use the new User model method
-        if not user.can_claim_daily_bonus():
-            return Response(
-                {"error": "Вы еще не можете получить новый бонус."},
-                status=status.HTTP_400_BAD_REQUEST
+            active_prizes = list(
+                DailyBonusPrize.objects.filter(is_active=True)
             )
 
-        # 2. Fetch active daily bonus prizes
-        active_prizes = DailyBonusPrize.objects.filter(is_active=True)
+            if not active_prizes:
+                return Response(
+                    {"error": "Нет доступных ежедневных бонусов."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-        if not active_prizes.exists():
-            return Response(
-                {"error": "Нет доступных ежедневных бонусов."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            weights = [prize.weight for prize in active_prizes]
+            selected_prize = random.choices(
+                active_prizes, weights=weights, k=1
+            )[0]
 
-        # 3. Weighted Random Selection
-        prizes_list = list(active_prizes)
-        weights = [prize.weight for prize in prizes_list]
-        selected_prize = random.choices(prizes_list, weights=weights, k=1)[0]
-
-        # 4. Create the DailyBonus record
-        bonus = DailyBonus.objects.create(
-            user=user,
-            prize=selected_prize
-        )
+            # Creating the bonus increments the claim streak.
+            bonus = DailyBonus.objects.create(user=user, prize=selected_prize)
 
         serializer = self.get_serializer(bonus)
 
@@ -336,7 +339,8 @@ class DailyBonusViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Mark as redeemed; this triggers points addition and streak update.
+        # Mark as redeemed;
+        # this awards points but does not change the claim streak.
         bonus.is_redeemed = True
         bonus.save()
 

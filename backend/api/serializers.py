@@ -30,6 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
     """Safe profile payload for the authenticated user only."""
     can_spin = serializers.ReadOnlyField()
     can_claim_daily_bonus = serializers.ReadOnlyField()
+    daily_streak = serializers.ReadOnlyField(source='current_daily_streak')
 
     class Meta:
         model = User
@@ -66,6 +67,7 @@ class NicknameSerializer(serializers.Serializer):
 
 class LeaderboardSerializer(serializers.ModelSerializer):
     """Only the public fields needed to render the monthly ladder."""
+    daily_streak = serializers.ReadOnlyField(source='current_daily_streak')
 
     class Meta:
         model = User

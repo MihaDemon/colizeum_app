@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.utils import timezone
 from django.core.cache import cache
 from django.db import transaction
@@ -7,6 +9,14 @@ from django.contrib.auth import get_user_model
 from .models import MonthlyLadderArchive
 
 User = get_user_model()
+
+
+def reset_expired_daily_streaks():
+    """Persist streak expiry for users who have not opened the app."""
+    cutoff = timezone.now() - timedelta(days=2)
+    User.objects.filter(daily_streak__gt=0).exclude(
+        bonuses__got_at__gt=cutoff
+    ).update(daily_streak=0)
 
 
 def check_and_reset_monthly_ladder():
